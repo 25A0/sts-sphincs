@@ -30,7 +30,7 @@ typedef struct  {
   u8 buf[128];
 } state;
 
-const u8 sigma[][16] = {
+const u8 blake512_sigma[][16] = {
     { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15 },
     {14,10, 4, 8, 9,15,13, 6, 1,12, 0, 2,11, 7, 5, 3 },
     {11, 8,12, 0, 5, 2,15,13,10,14, 3, 6, 7, 1, 9, 4 },
@@ -53,7 +53,7 @@ const u8 sigma[][16] = {
     {10, 2, 8, 4, 7, 6, 1, 5,15,11, 9,14, 3,12,13 ,0 }  
   };
 
-const u64 cst[16] = {
+const u64 blake512_cst[16] = {
   0x243F6A8885A308D3ULL,0x13198A2E03707344ULL,0xA4093822299F31D0ULL,0x082EFA98EC4E6C89ULL,
   0x452821E638D01377ULL,0xBE5466CF34E90C6CULL,0xC0AC29B7C97C50DDULL,0x3F84D5B5B5470917ULL,
   0x9216D5D98979FB1BULL,0xD1310BA698DFB5ACULL,0x2FFD72DBD01ADFB7ULL,0xB8E1AFED6A267E96ULL,
@@ -72,11 +72,11 @@ void blake512_compress( state * S, const u8 * block ) {
   u64 v[16], m[16], i;
 #define ROT(x,n) (((x)<<(64-n))|( (x)>>(n)))
 #define G(a,b,c,d,e)					\
-  v[a] += (m[sigma[i][e]] ^ cst[sigma[i][e+1]]) + v[b];	\
+  v[a] += (m[blake512_sigma[i][e]] ^ blake512_cst[blake512_sigma[i][e+1]]) + v[b];	\
   v[d] = ROT( v[d] ^ v[a],32);				\
   v[c] += v[d];						\
   v[b] = ROT( v[b] ^ v[c],25);				\
-  v[a] += (m[sigma[i][e+1]] ^ cst[sigma[i][e]])+v[b];	\
+  v[a] += (m[blake512_sigma[i][e+1]] ^ blake512_cst[blake512_sigma[i][e]])+v[b];	\
   v[d] = ROT( v[d] ^ v[a],16);				\
   v[c] += v[d];						\
   v[b] = ROT( v[b] ^ v[c],11);				

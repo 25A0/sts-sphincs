@@ -25,7 +25,7 @@ typedef struct  {
   u8  buf[64];
 } state;
 
-const u8 sigma[][16] = {
+const u8 blake256_sigma[][16] = {
   { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15 },
   {14,10, 4, 8, 9,15,13, 6, 1,12, 0, 2,11, 7, 5, 3 },
   {11, 8,12, 0, 5, 2,15,13,10,14, 3, 6, 7, 1, 9, 4 },
@@ -41,7 +41,7 @@ const u8 sigma[][16] = {
   {11, 8,12, 0, 5, 2,15,13,10,14, 3, 6, 7, 1, 9, 4 },
   { 7, 9, 3, 1,13,12,11,14, 2, 6, 5,10, 4, 0,15, 8 }};
 
-const u32 cst[16] = {
+const u32 blake256_cst[16] = {
   0x243F6A88,0x85A308D3,0x13198A2E,0x03707344,
   0xA4093822,0x299F31D0,0x082EFA98,0xEC4E6C89,
   0x452821E6,0x38D01377,0xBE5466CF,0x34E90C6C,
@@ -57,11 +57,11 @@ void blake256_compress( state *S, const u8 *block ) {
   u32 v[16], m[16], i;
 #define ROT(x,n) (((x)<<(32-n))|( (x)>>(n)))
 #define G(a,b,c,d,e)					\
-  v[a] += (m[sigma[i][e]] ^ cst[sigma[i][e+1]]) + v[b];	\
+  v[a] += (m[blake256_sigma[i][e]] ^ blake256_cst[blake256_sigma[i][e+1]]) + v[b];	\
   v[d] = ROT( v[d] ^ v[a],16);				\
   v[c] += v[d];						\
   v[b] = ROT( v[b] ^ v[c],12);				\
-  v[a] += (m[sigma[i][e+1]] ^ cst[sigma[i][e]])+v[b];	\
+  v[a] += (m[blake256_sigma[i][e+1]] ^ blake256_cst[blake256_sigma[i][e]])+v[b];	\
   v[d] = ROT( v[d] ^ v[a], 8);				\
   v[c] += v[d];						\
   v[b] = ROT( v[b] ^ v[c], 7);				
