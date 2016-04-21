@@ -5,7 +5,6 @@
 #include "crypto_hash_blake512.h"
 
 #include <stddef.h>
-#include <openssl/sha.h>
 
 int varlen_hash(unsigned char *out,const unsigned char *in,unsigned long long inlen)
 {
