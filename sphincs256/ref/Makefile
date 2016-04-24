@@ -1,5 +1,5 @@
 
-all: *.o
+all: libsphincs.a test_chacha12.o test_sphincs.o
 
 INCDIRS=-I. -I./include
 
