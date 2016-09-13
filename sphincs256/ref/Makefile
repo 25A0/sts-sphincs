@@ -1,3 +1,8 @@
+TESTS := $(shell find . -type f -name "test_*.c" | sed -e 's/.c$$/.o/g')
+
+BOLD := $(shell tput bold)
+RED := $(shell tput setaf 1)
+NORMAL := $(shell tput sgr0)
 
 all: libsphincs.a test_chacha12.o test_sphincs.o
 
@@ -18,3 +23,10 @@ test_sphincs.o: test_sphincs.c libsphincs.a
 clean:
 	-rm *.o
 	-rm *.a
+
+test: ${TESTS}
+	-@for test in ${TESTS}; do \
+		echo $${test};\
+		./$${test} || echo ${BOLD}$${test} ${RED}FAILED${NORMAL};\
+	done; true
+
