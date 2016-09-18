@@ -60,8 +60,9 @@ int test01() {
     m_hash
   );
 
+  unsigned char gpk[HASH_BYTES];
   int res = horst_verify(
-    pk,
+    gpk,
     sig,
     message,
     mlen,
@@ -69,8 +70,8 @@ int test01() {
     m_hash
   );
 
-
-  return res;
+  if (res != 0) return res;
+  else return compare(pk, gpk, HASH_BYTES);
 }
 
 int main(int argc, char const *argv[])
