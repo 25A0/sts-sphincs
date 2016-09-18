@@ -14,6 +14,9 @@ libsphincs.a: sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o 
 test_chacha12.o: test_chacha12.c chacha12.o
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
+test_wots.o: test_wots.c libsphincs.a
+	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+
 test_sphincs.o: test_sphincs.c libsphincs.a
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
