@@ -9,8 +9,8 @@ Public domain.
 uint32_t node_index(uint32_t tree_height, uint32_t layer, uint32_t node)
 {
   if(layer == 0) return node;
-  return (1<<tree_height) - 1 // All nodes in the entire tree
-    - ((1<<(tree_height - layer)) - 1) // Subtract nodes of a tree that is
+  return (1<<tree_height + 1) - 1 // All nodes in the entire tree
+    - ((1<<(tree_height + 1 - layer)) - 1) // Subtract nodes of a tree that is
                                        // `layer` layers smaller to get offset
     + node; // Add the index of the node in that layer
 }
