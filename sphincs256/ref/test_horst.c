@@ -2,6 +2,7 @@
 #include "prg.h"
 #include "horst.h"
 #include "params.h"
+#include "hash_address.h"
 
 int compare(unsigned char *x, unsigned char *y, unsigned long long l)
 {
@@ -41,10 +42,11 @@ int test01() {
   for (i = 0; i < SEED_BYTES; ++i) { seed[i] = 0; }
   prg(seed, SEED_BYTES, seed);
 
-  // construct mask
-  unsigned int masklen = 2*HORST_LOGT*HASH_BYTES;
-  unsigned char masks[masklen];
-  prg(masks, masklen, seed);
+  // construct address
+  uint32_t addr[ADDR_SIZE];
+  for(i = 0; i < ADDR_SIZE; i++) {
+    addr[i] = 0;
+  }
 
   // Hash message
   unsigned char m_hash[MSGHASH_BYTES];
@@ -56,7 +58,7 @@ int test01() {
     &sigbytes, 
     message, mlen, 
     seed, 
-    masks, 
+    addr,
     m_hash
   );
 
@@ -66,11 +68,13 @@ int test01() {
     sig,
     message,
     mlen,
-    masks,
+    addr,
     m_hash
   );
 
-  if (res != 0) return res;
+  if (res != 0) {
+    return res;
+  }
   else return compare(pk, gpk, HASH_BYTES);
 }
 
