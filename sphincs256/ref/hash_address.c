@@ -4,55 +4,61 @@ Andreas Hülsing
 Joost Rijneveld
 Public domain.
 */
-#include <stdint.h>
+#include "hash_address.h"
 
-void setLayerADRS(uint32_t adrs[8], uint32_t layer){
-  adrs[0] = layer;
+uint32_t node_index(uint32_t tree_height, uint32_t layer, uint32_t node)
+{
+  if(layer == 0) return node;
+  return (1<<tree_height) - 1 // All nodes in the entire tree
+    - ((1<<(tree_height - layer)) - 1) // Subtract nodes of a tree that is
+                                       // `layer` layers smaller to get offset
+    + node; // Add the index of the node in that layer
 }
 
-void setTreeADRS(uint32_t adrs[8], uint64_t tree){
-  adrs[1] = (uint32_t) (tree >> 32);
-  adrs[2] = (uint32_t) tree;
-}
-
-void setType(uint32_t adrs[8], uint32_t type){
-  adrs[3] = type;
+void set_type(uint32_t addr[ADDR_SIZE], enum addr_type type)
+{
+  addr[0] = (uint32_t) type;
   int i;
-  for(i = 4; i < 8; i++){
-    adrs[i] = 0;
+  for(i = 4; i < ADDR_SIZE; i++){
+    addr[i] = 0;
   }
 }
 
-void setKeyAndMask(uint32_t adrs[8], uint32_t keyAndMask){
-  adrs[7] = keyAndMask;
+// SPHINCS
+
+void set_sphincs_subtree(uint32_t addr[ADDR_SIZE], uint64_t tree)
+{
+  addr[1] = (uint32_t) (tree >> 32);
+  addr[2] = (uint32_t) tree;
 }
 
-// OTS
-
-void setOTSADRS(uint32_t adrs[8], uint32_t ots){
-  adrs[4] = ots;
+void set_sphincs_subtree_node(uint32_t addr[ADDR_SIZE], uint32_t node)
+{
+  addr[3] = node;
 }
 
-void setChainADRS(uint32_t adrs[8], uint32_t chain){
-  adrs[5] = chain;
+// WOTS OTS
+
+void set_wots_ots_index(uint32_t addr[ADDR_SIZE], uint32_t ots)
+{
+  addr[4] = ots;
 }
 
-void setHashADRS(uint32_t adrs[8], uint32_t hash){
-  adrs[6] = hash;
+void set_wots_chain_index(uint32_t addr[ADDR_SIZE], uint32_t chain)
+{
+  addr[5] = chain;
 }
 
-// L-tree
+// WOTS L-tree
 
-void setLtreeADRS(uint32_t adrs[8], uint32_t ltree){
-  adrs[4] = ltree;
+void set_wots_l_node(uint32_t addr[ADDR_SIZE], uint32_t node)
+{
+  addr[4] = node;
 }
 
-// Hash Tree & L-tree
+// HORST
 
-void setTreeHeight(uint32_t adrs[8], uint32_t treeHeight){
-  adrs[5] = treeHeight;
-}
-
-void setTreeIndex(uint32_t adrs[8], uint32_t treeIndex){
-  adrs[6] = treeIndex;
+void set_horst_node(uint32_t addr[ADDR_SIZE], uint32_t node)
+{
+  addr[4] = node;
 }
