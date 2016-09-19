@@ -39,7 +39,7 @@ enum addr_type {
  *
  * For type WOTS_ADDR:
  * 4 |- WOTS_LOG_L -| WOTS OTS index
- * 5 |- WOTS_LOG_W -| Position within OTS chain
+ * 5 |- WOTS_LOG_W -| Position within OTS chain, or 0 for initial key expansion
  *
  * For type WOTS_L_ADDR:
  * 4 |-32b-| Node within WOTS L-tree
