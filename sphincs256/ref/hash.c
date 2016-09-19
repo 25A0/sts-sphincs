@@ -6,6 +6,8 @@
 
 #include <stddef.h>
 
+#include "hash_address.h"
+
 int varlen_hash(unsigned char *out,const unsigned char *in,unsigned long long inlen)
 {
   //SHA256(in,inlen,out);
@@ -85,3 +87,28 @@ int hash_n_n_mask(unsigned char *out,const unsigned char *in, const unsigned cha
   return hash_n_n(out, buf);
 }
 
+int hash_n_n_addr(unsigned char *out,
+                  const unsigned char *in,
+                  const unsigned char *addr)
+{
+  unsigned char buf[HASH_BYTES + ADDR_BYTES];
+  int i;
+  for(i = 0; i < HASH_BYTES; i++)
+    buf[i] = in[i];
+  for(i = 0; i < ADDR_BYTES; i++)
+    buf[HASH_BYTES + i] = addr[i];
+  return varlen_hash(out, buf, HASH_BYTES + ADDR_BYTES);
+}
+
+int hash_2n_n_addr(unsigned char *out,
+                   const unsigned char *in,
+                   const unsigned char *addr)
+{
+  unsigned char buf[2*HASH_BYTES + ADDR_BYTES];
+  int i;
+  for(i = 0; i < 2*HASH_BYTES; i++)
+    buf[i] = in[i];
+  for(i = 0; i < ADDR_BYTES; i++)
+    buf[2*HASH_BYTES + i] = addr[i];
+  return varlen_hash(out, buf, 2*HASH_BYTES + ADDR_BYTES);
+}
