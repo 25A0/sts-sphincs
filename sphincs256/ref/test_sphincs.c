@@ -1,16 +1,7 @@
 #include <stdio.h>
 #include "sign.h"
 #include "api.h"
-
-int compare(unsigned char *x, unsigned char *y, unsigned long long l)
-{
-  int i;
-  for (i = 0; i < l; ++i)
-  {
-    if(x[i] != y[i]) return 1;
-  }
-  return 0;
-}
+#include "testutils.h"
 
 int test01()
 {

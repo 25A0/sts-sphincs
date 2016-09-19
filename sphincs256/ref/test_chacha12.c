@@ -1,15 +1,6 @@
 #include <stdio.h>
 #include "crypto_stream_chacha12.h"
-
-int compare(unsigned char *x, unsigned char *y, unsigned long long l)
-{
-  int i;
-  for (i = 0; i < l; ++i)
-  {
-    if(x[i] != y[i]) return 1;
-  }
-  return 0;
-}
+#include "testutils.h"
 
 // Test vectors taken from
 // https://www.ietf.org/archive/id/draft-strombergson-chacha-test-vectors-01.txt
