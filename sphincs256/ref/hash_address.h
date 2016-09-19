@@ -5,6 +5,9 @@ Joost Rijneveld
 Public domain.
 */
 
+#ifndef HASH_ADDRESS
+#define HASH_ADDRESS
+
 #include <stdint.h>
 
 #define ADDR_SIZE 6
@@ -77,3 +80,5 @@ void set_wots_l_node(uint32_t addr[ADDR_SIZE], uint32_t node);
 // HORST
 
 void set_horst_node(uint32_t addr[ADDR_SIZE], uint32_t node);
+
+#endif
