@@ -8,6 +8,7 @@ Public domain.
 #include <stdint.h>
 
 #define ADDR_SIZE 6
+#define ADDR_BYTES (ADDR_SIZE*4)
 
 // To avoid that hash calls in different data structure use the
 // same address by mistake, the address type uniquely identifies
