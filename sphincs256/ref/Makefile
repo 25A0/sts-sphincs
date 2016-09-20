@@ -9,7 +9,7 @@ all: libsphincs.a ${TESTS}
 INCDIRS=-I. -I./include
 CFLAGS=-g
 
-libsphincs.a: sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o blake512.o permute.o prg.o chacha12.o hash_address.o
+libsphincs.a: sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o blake512.o permute.o prg.o chacha12.o hash_address.o tree.o
 	$(AR) -ar cr $@ $^
 
 test_chacha12.o: testutils.o test_chacha12.c chacha12.o
