@@ -33,7 +33,7 @@ clean:
 
 test: ${TESTS}
 	-@for test in ${TESTS}; do \
-		echo $${test};\
-		./$${test} || echo ${BOLD}$${test} ${RED}FAILED${NORMAL};\
+		echo $${test}; \
+		./$${test} || echo "${BOLD}$${test} ${RED}FAILED${NORMAL}"; \
 	done; true
 
