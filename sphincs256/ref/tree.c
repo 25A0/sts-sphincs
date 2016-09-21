@@ -41,6 +41,16 @@ void get_seed(unsigned char seed[SEED_BYTES],
 }
 
 
+// Hashes two nodes in a binary tree to form its parent node.
+// HASH_BYTES bytes will be written to *parent, and
+// 2*HASH_BYTES bytes will be read from *nodes.
+static void hash_nodes(unsigned char *parent,
+                       const unsigned char *nodes,
+                       const unsigned char *masks)
+{
+  hash_2n_n_mask(parent, nodes, masks);
+}
+
 void l_tree(unsigned char *leaf,
             unsigned char *wots_pk,
             const unsigned char *masks)
@@ -50,7 +60,7 @@ void l_tree(unsigned char *leaf,
   for(i=0;i<WOTS_LOG_L;i++)
   {
     for(j=0 ;j < (l>>1);j++)
-      hash_2n_n_mask(wots_pk+j*HASH_BYTES,wots_pk+j*2*HASH_BYTES, masks+i*2*HASH_BYTES);
+      hash_nodes(wots_pk+j*HASH_BYTES,wots_pk+j*2*HASH_BYTES, masks+i*2*HASH_BYTES);
 
     if(l&1)
     {
@@ -115,7 +125,7 @@ void treehash(unsigned char *node,
     {
       //MASKS
       maskoffset = 2*(stacklevels[stackoffset-1] + WOTS_LOG_L)*HASH_BYTES;
-      hash_2n_n_mask(stack+(stackoffset-2)*HASH_BYTES,stack+(stackoffset-2)*HASH_BYTES,
+      hash_nodes(stack+(stackoffset-2)*HASH_BYTES,stack+(stackoffset-2)*HASH_BYTES,
           masks+maskoffset);
       stacklevels[stackoffset-2]++;
       stackoffset--;
@@ -157,19 +167,19 @@ void validate_authpath(unsigned char root[HASH_BYTES],
     leafidx >>= 1;
     if(leafidx&1)
     {
-      hash_2n_n_mask(buffer+HASH_BYTES,buffer,masks+2*(WOTS_LOG_L+i)*HASH_BYTES);
+      hash_nodes(buffer+HASH_BYTES,buffer,masks+2*(WOTS_LOG_L+i)*HASH_BYTES);
       for(j=0;j<HASH_BYTES;j++)
         buffer[j] = authpath[j];
     }
     else
     {
-      hash_2n_n_mask(buffer,buffer,masks+2*(WOTS_LOG_L+i)*HASH_BYTES);
+      hash_nodes(buffer,buffer,masks+2*(WOTS_LOG_L+i)*HASH_BYTES);
       for(j=0;j<HASH_BYTES;j++)
         buffer[j+HASH_BYTES] = authpath[j];
     }
     authpath += HASH_BYTES;
   }
-  hash_2n_n_mask(root,buffer,masks+2*(WOTS_LOG_L+height-1)*HASH_BYTES);
+  hash_nodes(root,buffer,masks+2*(WOTS_LOG_L+height-1)*HASH_BYTES);
 }
 
 void compute_authpath_wots(unsigned char root[HASH_BYTES],
@@ -218,7 +228,7 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
   for (i = (1<<SUBTREE_HEIGHT); i > 0; i>>=1)
   {
     for (j = 0; j < i; j+=2)
-      hash_2n_n_mask(tree + (i>>1)*HASH_BYTES + (j>>1) * HASH_BYTES, 
+      hash_nodes(tree + (i>>1)*HASH_BYTES + (j>>1) * HASH_BYTES, 
           tree + i*HASH_BYTES + j * HASH_BYTES,
           masks+2*(WOTS_LOG_L + level)*HASH_BYTES);
 
