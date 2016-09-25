@@ -129,8 +129,17 @@ int crypto_sign(unsigned char *sm,unsigned long long *smlen, const unsigned char
   sm += (TOTALTREE_HEIGHT+7)/8;
   *smlen += (TOTALTREE_HEIGHT+7)/8;
 
+  uint32_t hash_addr[ADDR_SIZE];
+  for(i = 0; i < ADDR_SIZE; i++)
+    hash_addr[i] = 0;
+
+  char public_seed[PUBLIC_SEED_BYTES];
+  for(i = 0; i < PUBLIC_SEED_BYTES; i++)
+    public_seed[i] = 0;
+
+
   get_seed(seed, tsk, &a);
-  horst_sign(sm, root, &horst_sigbytes, m, mlen, seed, masks, m_h);
+  horst_sign(sm, root, &horst_sigbytes, m, mlen, seed, hash_addr, m_h);
 
   sm += horst_sigbytes;
   *smlen += horst_sigbytes;
@@ -140,7 +149,7 @@ int crypto_sign(unsigned char *sm,unsigned long long *smlen, const unsigned char
     a.level = i;
 
     get_seed(seed, tsk, &a); //XXX: Don't use the same address as for horst_sign here!
-    wots_sign(sm, root, seed, masks);
+    wots_sign(sm, root, seed, public_seed, hash_addr);
     sm += WOTS_SIGBYTES;
     *smlen += WOTS_SIGBYTES;
 
@@ -212,9 +221,21 @@ int crypto_sign_open(unsigned char *m,unsigned long long *mlen, const unsigned c
   for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
     leafidx ^= (((unsigned long long)sigp[i]) << 8*i);
 
+  uint32_t hash_addr[ADDR_SIZE];
+  for(i = 0; i < ADDR_SIZE; i++)
+    hash_addr[i] = 0;
 
-  horst_verify(root, sigp+(TOTALTREE_HEIGHT+7)/8, 
-      sigp+CRYPTO_BYTES-MESSAGE_HASH_SEED_BYTES, smlen-CRYPTO_BYTES-MESSAGE_HASH_SEED_BYTES, tpk, m_h);
+  char public_seed[PUBLIC_SEED_BYTES];
+  for(i = 0; i < PUBLIC_SEED_BYTES; i++)
+    public_seed[i] = 0;
+
+
+  horst_verify(root,
+               sigp+(TOTALTREE_HEIGHT+7)/8,
+               sigp+CRYPTO_BYTES-MESSAGE_HASH_SEED_BYTES,
+               smlen-CRYPTO_BYTES-MESSAGE_HASH_SEED_BYTES,
+               hash_addr,
+               m_h);
 
   sigp += (TOTALTREE_HEIGHT+7)/8;
   smlen -= (TOTALTREE_HEIGHT+7)/8;
@@ -224,7 +245,7 @@ int crypto_sign_open(unsigned char *m,unsigned long long *mlen, const unsigned c
 
   for(i=0;i<N_LEVELS;i++)
   {
-    wots_verify(wots_pk, sigp, root, tpk);
+    wots_verify(wots_pk, sigp, root, public_seed, hash_addr);
 
     sigp += WOTS_SIGBYTES;
     smlen -= WOTS_SIGBYTES;
