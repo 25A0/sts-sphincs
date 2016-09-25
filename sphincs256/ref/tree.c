@@ -1,4 +1,6 @@
 #include "tree.h"
+#include "wots.h"
+#include "hash.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -77,16 +79,13 @@ void l_tree(unsigned char *leaf,
 void gen_leaf_wots(unsigned char leaf[HASH_BYTES],
                    const unsigned char *masks,
                    const unsigned char *sk,
-                   const leafaddr *a)
+                   const leafaddr *a,
+                   const unsigned char *public_seed)
 {
   unsigned char seed[SEED_BYTES];
   unsigned char pk[WOTS_L*HASH_BYTES];
 
-  unsigned char public_seed[PUBLIC_SEED_BYTES];
   int i;
-  for(i = 0; i < PUBLIC_SEED_BYTES; i++) {
-    public_seed[i] = 0;
-  }
 
   uint32_t addr[ADDR_SIZE];
   for(i = 0; i < ADDR_SIZE; i++) {
@@ -104,7 +103,8 @@ void treehash(unsigned char *node,
               int height,
               const unsigned char *sk,
               const leafaddr *leaf,
-              const unsigned char *masks)
+              const unsigned char *masks,
+              const unsigned char *public_seed)
 {
 
   leafaddr a = *leaf;
@@ -118,7 +118,7 @@ void treehash(unsigned char *node,
 
   for(;a.subleaf<lastnode;a.subleaf++) 
   {
-    gen_leaf_wots(stack+stackoffset*HASH_BYTES,masks,sk,&a);
+    gen_leaf_wots(stack+stackoffset*HASH_BYTES,masks,sk,&a,public_seed);
     stacklevels[stackoffset] = 0;
     stackoffset++;
     while(stackoffset>1 && stacklevels[stackoffset-1] == stacklevels[stackoffset-2])
@@ -187,7 +187,8 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
                            const leafaddr *a,
                            const unsigned char *sk,
                            const unsigned char *masks,
-                           unsigned int height)
+                           unsigned int height,
+                           const unsigned char *public_seed)
 {
   int i, idx, j;
   leafaddr ta = *a;
@@ -195,12 +196,6 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
   unsigned char tree[2*(1<<SUBTREE_HEIGHT)*HASH_BYTES];
   unsigned char seed[(1<<SUBTREE_HEIGHT)*SEED_BYTES];
   unsigned char pk[(1<<SUBTREE_HEIGHT)*WOTS_L*HASH_BYTES];
-
-  unsigned char public_seed[PUBLIC_SEED_BYTES];
-
-  for(i = 0; i < PUBLIC_SEED_BYTES; i++) {
-    public_seed[i] = 0;
-  }
 
   uint32_t addr[ADDR_SIZE];
   for(i = 0; i < ADDR_SIZE; i++) {
@@ -245,5 +240,3 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
   // copy root
   memcpy(root, tree+HASH_BYTES, HASH_BYTES);
 }
-
-
