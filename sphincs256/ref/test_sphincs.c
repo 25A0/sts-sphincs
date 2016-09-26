@@ -36,11 +36,6 @@ int test01()
               sk,
               public_seed);
 
-  printf("%s\n", "Signature:");
-  for(i = 0; i < smlen; i++)
-    printf("%x", sm[i]);
-  printf("\n");
-
   int res = crypto_sign_open(message, &mlen,
                              sm, smlen,
                              pk,
@@ -51,9 +46,9 @@ int test01()
 int main(int argc, char const *argv[])
 {
   int err = 0;
-  
+
   err |= test01();
-  
+
   if(err)
   {
     printf("Expected and actual results differed. %d\n", err);
