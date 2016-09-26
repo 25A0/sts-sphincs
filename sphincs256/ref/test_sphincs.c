@@ -10,7 +10,7 @@ int test01()
   unsigned char public_seed[PUBLIC_SEED_BYTES];
 
   unsigned long long mlen = 32;
-  unsigned char message[mlen];
+  unsigned char message[mlen + CRYPTO_BYTES];
   unsigned int i = 0;
   message[i++] = 'H';
   message[i++] = 'e';
