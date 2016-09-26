@@ -22,13 +22,15 @@ void l_tree(unsigned char *leaf,
 void gen_leaf_wots(unsigned char leaf[HASH_BYTES],
                    const unsigned char *masks,
                    const unsigned char *sk,
-                   const leafaddr *a);
+                   const leafaddr *a,
+                   const unsigned char *public_seed);
 
 void treehash(unsigned char *node,
               int height,
               const unsigned char *sk,
               const leafaddr *leaf,
-              const unsigned char *masks);
+              const unsigned char *masks,
+              const unsigned char *public_seed);
 
 void validate_authpath(unsigned char root[HASH_BYTES],
                        const unsigned char leaf[HASH_BYTES],
@@ -42,6 +44,6 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
                            const leafaddr *a,
                            const unsigned char *sk,
                            const unsigned char *masks,
-                           unsigned int height);
-
+                           unsigned int height,
+                           const unsigned char *public_seed);
 #endif

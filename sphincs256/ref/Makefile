@@ -7,7 +7,7 @@ NORMAL := $(shell tput sgr0)
 all: libsphincs.a ${TESTS}
 
 INCDIRS=-I. -I./include
-CFLAGS=-g
+CFLAGS=-g -Wall
 
 libsphincs.a: sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o blake512.o permute.o prg.o chacha12.o hash_address.o tree.o
 	$(AR) -ar cr $@ $^

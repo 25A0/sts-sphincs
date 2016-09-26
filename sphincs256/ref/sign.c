@@ -24,9 +24,16 @@
 /*
  * Format pk: [|N_MASKS*HASH_BYTES| Bitmasks || root]
  */
-int crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
+int crypto_sign_keypair(unsigned char *pk, unsigned char *sk, unsigned char *ps)
 {
   leafaddr a;
+
+  // Initialize public seed byes
+  // randombytes(ps, PUBLIC_SEED_BYTES);
+  int i;
+  for(i=0;i<PUBLIC_SEED_BYTES;i++) {
+    ps[i] = 0;
+  }
 
   randombytes(sk,CRYPTO_SECRETKEYBYTES);
   memcpy(pk,sk+SEED_BYTES,N_MASKS*HASH_BYTES);
@@ -37,12 +44,18 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
   a.subleaf = 0;
 
   // Construct top subtree
-  treehash(pk+(N_MASKS*HASH_BYTES), SUBTREE_HEIGHT, sk, &a, pk);
+  treehash(pk+(N_MASKS*HASH_BYTES), SUBTREE_HEIGHT, sk, &a, pk, ps);
+
   return 0;
 }
 
 
-int crypto_sign(unsigned char *sm,unsigned long long *smlen, const unsigned char *m,unsigned long long mlen, const unsigned char *sk)
+int crypto_sign(unsigned char *sm,
+                unsigned long long *smlen,
+                const unsigned char *m,
+                unsigned long long mlen,
+                const unsigned char *sk,
+                const unsigned char *public_seed)
 {
   leafaddr a;
   unsigned long long i;
@@ -103,7 +116,7 @@ int crypto_sign(unsigned char *sm,unsigned long long *smlen, const unsigned char
 
     memcpy(pk, tsk+SEED_BYTES, N_MASKS*HASH_BYTES);
 
-    treehash(pk+(N_MASKS*HASH_BYTES), SUBTREE_HEIGHT, tsk, &a, pk);
+    treehash(pk+(N_MASKS*HASH_BYTES), SUBTREE_HEIGHT, tsk, &a, pk, public_seed);
 
     // message already on the right spot
 
@@ -133,11 +146,6 @@ int crypto_sign(unsigned char *sm,unsigned long long *smlen, const unsigned char
   for(i = 0; i < ADDR_SIZE; i++)
     hash_addr[i] = 0;
 
-  char public_seed[PUBLIC_SEED_BYTES];
-  for(i = 0; i < PUBLIC_SEED_BYTES; i++)
-    public_seed[i] = 0;
-
-
   get_seed(seed, tsk, &a);
   horst_sign(sm, root, &horst_sigbytes, m, mlen, seed, hash_addr, m_h);
 
@@ -153,7 +161,7 @@ int crypto_sign(unsigned char *sm,unsigned long long *smlen, const unsigned char
     sm += WOTS_SIGBYTES;
     *smlen += WOTS_SIGBYTES;
 
-    compute_authpath_wots(root,sm,&a,tsk,masks,SUBTREE_HEIGHT);
+    compute_authpath_wots(root,sm,&a,tsk,masks,SUBTREE_HEIGHT, public_seed);
     sm += SUBTREE_HEIGHT*HASH_BYTES;
     *smlen += SUBTREE_HEIGHT*HASH_BYTES;
     
@@ -170,7 +178,12 @@ int crypto_sign(unsigned char *sm,unsigned long long *smlen, const unsigned char
 
 
 
-int crypto_sign_open(unsigned char *m,unsigned long long *mlen, const unsigned char *sm,unsigned long long smlen, const unsigned char *pk)
+int crypto_sign_open(unsigned char *m,
+                     unsigned long long *mlen,
+                     const unsigned char *sm,
+                     unsigned long long smlen,
+                     const unsigned char *pk,
+                     const unsigned char* public_seed)
 {
   unsigned long long i;
   unsigned long long leafidx=0;
@@ -225,11 +238,6 @@ int crypto_sign_open(unsigned char *m,unsigned long long *mlen, const unsigned c
   for(i = 0; i < ADDR_SIZE; i++)
     hash_addr[i] = 0;
 
-  char public_seed[PUBLIC_SEED_BYTES];
-  for(i = 0; i < PUBLIC_SEED_BYTES; i++)
-    public_seed[i] = 0;
-
-
   horst_verify(root,
                sigp+(TOTALTREE_HEIGHT+7)/8,
                sigp+CRYPTO_BYTES-MESSAGE_HASH_SEED_BYTES,
@@ -251,7 +259,7 @@ int crypto_sign_open(unsigned char *m,unsigned long long *mlen, const unsigned c
     smlen -= WOTS_SIGBYTES;
 
     l_tree(pkhash, wots_pk,tpk);
-    validate_authpath(root, pkhash, leafidx & 0x1f, sigp, tpk, SUBTREE_HEIGHT);  
+    validate_authpath(root, pkhash, leafidx & 0x1f, sigp, tpk, SUBTREE_HEIGHT);
     leafidx >>= 5;
 
     sigp += SUBTREE_HEIGHT*HASH_BYTES;
@@ -274,6 +282,6 @@ fail:
   for(i=0;i<*mlen;i++)
     m[i] = 0;
   *mlen = -1;
-  return -1;
+  return -2;
 }
 
