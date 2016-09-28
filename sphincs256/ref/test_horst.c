@@ -2,6 +2,7 @@
 #include "prg.h"
 #include "horst.h"
 #include "params.h"
+#include "hash.h"
 #include "hash_address.h"
 #include "testutils.h"
 
