@@ -215,7 +215,6 @@ int test06()
 
 int test07()
 {
-  int i;
   const unsigned long long rlen = 128;
   unsigned char r[rlen];
   unsigned char key[] = 
@@ -258,7 +257,6 @@ int test07()
 
 int test08()
 {
-  int i;
   const unsigned long long rlen = 128;
   unsigned char r[rlen];
   unsigned char key[] = 
