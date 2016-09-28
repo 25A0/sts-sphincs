@@ -29,11 +29,7 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk, unsigned char *ps)
   leafaddr a;
 
   // Initialize public seed byes
-  // randombytes(ps, PUBLIC_SEED_BYTES);
-  int i;
-  for(i=0;i<PUBLIC_SEED_BYTES;i++) {
-    ps[i] = 0;
-  }
+  randombytes(ps, PUBLIC_SEED_BYTES);
 
   randombytes(sk,CRYPTO_SECRETKEYBYTES);
   memcpy(pk,sk+SEED_BYTES,N_MASKS*HASH_BYTES);
