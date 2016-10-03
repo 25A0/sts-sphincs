@@ -112,3 +112,35 @@ int hash_2n_n_addr(unsigned char *out,
     buf[2*HASH_BYTES + i] = addr[i];
   return varlen_hash(out, buf, 2*HASH_BYTES + ADDR_BYTES);
 }
+
+int hash_n_n_addr_seeded(unsigned char *out,
+                         const unsigned char *in,
+                         const unsigned char *addr,
+                         const unsigned char *seed)
+{
+  unsigned char buf[HASH_BYTES + ADDR_BYTES + PUBLIC_SEED_BYTES];
+  int i;
+  for(i = 0; i < HASH_BYTES; i++)
+    buf[i] = in[i];
+  for(i = 0; i < ADDR_BYTES; i++)
+    buf[HASH_BYTES + i] = addr[i];
+  for(i = 0; i < PUBLIC_SEED_BYTES; i++)
+    buf[HASH_BYTES + ADDR_BYTES + i] = seed[i];
+  return varlen_hash(out, buf, HASH_BYTES + ADDR_BYTES + PUBLIC_SEED_BYTES);
+}
+
+int hash_2n_n_addr_seeded(unsigned char *out,
+                          const unsigned char *in,
+                          const unsigned char *addr,
+                          const unsigned char *seed)
+{
+  unsigned char buf[2*HASH_BYTES + ADDR_BYTES + PUBLIC_SEED_BYTES];
+  int i;
+  for(i = 0; i < 2*HASH_BYTES; i++)
+    buf[i] = in[i];
+  for(i = 0; i < ADDR_BYTES; i++)
+    buf[2*HASH_BYTES + i] = addr[i];
+  for(i = 0; i < PUBLIC_SEED_BYTES; i++)
+    buf[2*HASH_BYTES + ADDR_BYTES + i] = seed[i];
+  return varlen_hash(out, buf, 2*HASH_BYTES + ADDR_BYTES + PUBLIC_SEED_BYTES);
+}
