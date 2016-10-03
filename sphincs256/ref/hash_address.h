@@ -32,7 +32,8 @@ enum addr_type {
  *For all types:
  * 0 |- 32b -| Address type
  *
- * 1 |- 64b -
+ * 1 |- 4b -   SPHINCS layer
+ * 1  - 60b -
  * 2  -------| SPHINCS subtree address
  *
  * 3 |- 32b -| Node or leave within SPHINCS subtree
@@ -63,9 +64,14 @@ void set_type(uint32_t addr[ADDR_SIZE], enum addr_type type);
 
 // SPHINCS
 
+void set_sphincs_subtree_layer(uint32_t addr[ADDR_SIZE], uint32_t level);
+uint32_t get_sphincs_subtree_layer(uint32_t addr[ADDR_SIZE]);
+
 void set_sphincs_subtree(uint32_t addr[ADDR_SIZE], uint64_t tree);
+uint64_t get_sphincs_subtree(uint32_t addr[ADDR_SIZE]);
 
 void set_sphincs_subtree_node(uint32_t addr[ADDR_SIZE], uint32_t node);
+uint32_t get_sphincs_subtree_node(uint32_t addr[ADDR_SIZE]);
 
 // WOTS OTS
 
