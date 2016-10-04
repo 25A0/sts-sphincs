@@ -9,4 +9,6 @@ int compare(unsigned char *x, unsigned char *y, unsigned long long l);
 // that the underlying test failed, and the description will be printed
 int run_test(int (*test_fun)(void), char* description);
 
+void hexdump(unsigned char *data, int start, int len);
+
 #endif

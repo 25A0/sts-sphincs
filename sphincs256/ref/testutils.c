@@ -20,3 +20,14 @@ int run_test(int (*test_fun)(void), char* description)
   }
   return err;
 }
+
+void hexdump(unsigned char *data, int start, int len)
+{
+  int i;
+  for(i = 0; i < len; i++) {
+    if(i % 32 == 0) printf("\n%04d: ", i);
+    printf("%02x", data[start + i]);
+    if(i % 2) printf(" ");
+  }
+  printf("\n");
+}
