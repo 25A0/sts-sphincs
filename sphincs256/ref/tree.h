@@ -7,7 +7,7 @@
 
 void get_seed(unsigned char seed[SEED_BYTES],
               const unsigned char *sk,
-              const uint32_t *address);
+              uint32_t *address);
 
 void l_tree(unsigned char *leaf,
             unsigned char *wots_pk,
