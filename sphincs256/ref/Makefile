@@ -18,6 +18,9 @@ test_chacha12.o: testutils.o test_chacha12.c chacha12.o
 test_wots.o: testutils.o test_wots.c libsphincs.a
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
+test_tree.o: testutils.o test_tree.c libsphincs.a
+	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+
 test_sphincs.o: testutils.o test_sphincs.c libsphincs.a
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
