@@ -34,7 +34,7 @@ void set_sphincs_subtree_layer(uint32_t addr[ADDR_SIZE], uint32_t level)
 
 uint32_t get_sphincs_subtree_layer(uint32_t addr[ADDR_SIZE])
 {
-  return (addr[1] & 0xff000000) >> 28;
+  return (addr[1] & 0xff0000000) >> 28;
 }
 
 void set_sphincs_subtree(uint32_t addr[ADDR_SIZE], uint64_t tree)
