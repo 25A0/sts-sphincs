@@ -24,5 +24,3 @@
 
 #define HASH_BYTES 32 // Has to be log(HORST_T)*HORST_K/8
 #define MSGHASH_BYTES 64
-
-#define N_MASKS (2*(HORST_LOGT)) /* has to be the max of  (2*(SUBTREE_HEIGHT+WOTS_LOGL)) and (WOTS_W-1) and 2*HORST_LOGT */

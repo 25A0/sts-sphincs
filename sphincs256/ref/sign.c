@@ -30,7 +30,6 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk, unsigned char *ps)
   randombytes(ps, PUBLIC_SEED_BYTES);
 
   randombytes(sk,CRYPTO_SECRETKEYBYTES);
-  memcpy(pk,sk+SEED_BYTES,N_MASKS*HASH_BYTES);
 
   // Initialization of top-subtree address
   uint32_t address[ADDR_SIZE];
@@ -40,7 +39,7 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk, unsigned char *ps)
   set_sphincs_subtree_node(address, 0);
 
   // Construct top subtree
-  treehash(pk+(N_MASKS*HASH_BYTES), SUBTREE_HEIGHT, sk, address, ps);
+  treehash(pk, SUBTREE_HEIGHT, sk, address, ps);
 
   return 0;
 }
@@ -71,7 +70,6 @@ int crypto_sign(unsigned char *sm,
   unsigned long long horst_sigbytes;
   unsigned char root[HASH_BYTES];
   unsigned char seed[SEED_BYTES];
-  unsigned char masks[N_MASKS*HASH_BYTES];
   unsigned char *pk;
   unsigned char tsk[CRYPTO_SECRETKEYBYTES];
   uint32_t address[ADDR_SIZE];
@@ -120,9 +118,7 @@ int crypto_sign(unsigned char *sm,
 
     pk = scratch + MESSAGE_HASH_SEED_BYTES;
 
-    memcpy(pk, tsk+SEED_BYTES, N_MASKS*HASH_BYTES);
-
-    treehash(pk+(N_MASKS*HASH_BYTES), SUBTREE_HEIGHT, tsk, address, public_seed);
+    treehash(pk, SUBTREE_HEIGHT, tsk, address, public_seed);
 
     // message already on the right spot
 
@@ -141,7 +137,6 @@ int crypto_sign(unsigned char *sm,
   sm += MESSAGE_HASH_SEED_BYTES;
   *smlen += MESSAGE_HASH_SEED_BYTES;
 
-  memcpy(masks, tsk+SEED_BYTES,N_MASKS*HASH_BYTES);
   for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
     sm[i] = (leafidx >> 8*i) & 0xff;
 
@@ -278,7 +273,7 @@ int crypto_sign_open(unsigned char *m,
   }
 
   for(i=0;i<HASH_BYTES;i++)
-    if(root[i] != tpk[i+N_MASKS*HASH_BYTES])
+    if(root[i] != tpk[i])
       goto fail;
   
   *mlen = smlen;
