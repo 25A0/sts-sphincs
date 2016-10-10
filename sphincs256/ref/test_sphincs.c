@@ -7,7 +7,6 @@ int test01()
 {
   unsigned char sk[CRYPTO_SECRETKEYBYTES];
   unsigned char pk[CRYPTO_PUBLICKEYBYTES];
-  unsigned char public_seed[PUBLIC_SEED_BYTES];
 
   unsigned long long mlen = 32;
   unsigned char message[mlen + CRYPTO_BYTES];
@@ -28,18 +27,16 @@ int test01()
   
   unsigned char sm[CRYPTO_BYTES + mlen];
 
-  crypto_sign_keypair(pk, sk, public_seed);
+  crypto_sign_keypair(pk, sk);
 
   unsigned long long smlen;
   crypto_sign(sm, &smlen,
               message, mlen,
-              sk,
-              public_seed);
+              sk);
 
   int res = crypto_sign_open(message, &mlen,
                              sm, smlen,
-                             pk,
-                             public_seed);
+                             pk);
   return res;
 }
 

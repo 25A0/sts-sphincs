@@ -162,7 +162,7 @@ int horst_verify(unsigned char *pk,
       }
       sig += HASH_BYTES;
 
-      offset += 1<<HORST_LOGT - j;
+      offset += 1<<(HORST_LOGT - j);
     }
 
     idx = idx>>1; // parent node

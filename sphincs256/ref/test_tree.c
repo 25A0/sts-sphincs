@@ -10,9 +10,10 @@ int test01()
   // Generate keypair
   unsigned char pk[CRYPTO_PUBLICKEYBYTES];
   unsigned char sk[CRYPTO_SECRETKEYBYTES];
-  unsigned char public_seed[PUBLIC_SEED_BYTES];
 
-  crypto_sign_keypair(pk, sk, public_seed);
+  crypto_sign_keypair(pk, sk);
+
+  unsigned char* public_seed = sk + SEED_BYTES;
 
   uint32_t address[ADDR_SIZE];
   int i;
