@@ -19,16 +19,20 @@
 #error "TOTALTREE_HEIGHT-SUBTREE_HEIGHT must be at most 64" 
 #endif
 
+static inline const unsigned char* get_public_seed_from_pk(const unsigned char* pk) {
+  return pk + HASH_BYTES;
+}
 
+static inline const unsigned char* get_public_seed_from_sk(const unsigned char* sk) {
+  return sk + SEED_BYTES;
+}
 
 /*
- * Format pk: [|N_MASKS*HASH_BYTES| Bitmasks || root]
+ * Format pk: [root|public seed]
+ * Format sk: [seed|public seed|secret seed]
  */
-int crypto_sign_keypair(unsigned char *pk, unsigned char *sk, unsigned char *ps)
+int crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
 {
-  // Initialize public seed byes
-  randombytes(ps, PUBLIC_SEED_BYTES);
-
   randombytes(sk,CRYPTO_SECRETKEYBYTES);
 
   // Initialization of top-subtree address
@@ -39,7 +43,10 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk, unsigned char *ps)
   set_sphincs_subtree_node(address, 0);
 
   // Construct top subtree
-  treehash(pk, SUBTREE_HEIGHT, sk, address, ps);
+  treehash(pk, SUBTREE_HEIGHT, sk, address, get_public_seed_from_sk(sk));
+
+  // Copy public seed
+  memcpy(pk + HASH_BYTES, sk + SEED_BYTES, PUBLIC_SEED_BYTES);
 
   return 0;
 }
@@ -59,8 +66,7 @@ int crypto_sign(unsigned char *sm,
                 unsigned long long *smlen,
                 const unsigned char *m,
                 unsigned long long mlen,
-                const unsigned char *sk,
-                const unsigned char *public_seed)
+                const unsigned char *sk)
 {
   unsigned long long i;
   unsigned long long leafidx;
@@ -72,6 +78,7 @@ int crypto_sign(unsigned char *sm,
   unsigned char seed[SEED_BYTES];
   unsigned char *pk;
   unsigned char tsk[CRYPTO_SECRETKEYBYTES];
+  const unsigned char* public_seed = get_public_seed_from_sk(sk);
   uint32_t address[ADDR_SIZE];
 
   for(i=0;i<CRYPTO_SECRETKEYBYTES;i++)
@@ -120,8 +127,10 @@ int crypto_sign(unsigned char *sm,
 
     treehash(pk, SUBTREE_HEIGHT, tsk, address, public_seed);
 
-    // message already on the right spot
+    // Include public seed
+    memcpy(pk + HASH_BYTES, get_public_seed_from_sk(sk), PUBLIC_SEED_BYTES);
 
+    // message already on the right spot
     msg_hash(m_h, scratch, mlen + MESSAGE_HASH_SEED_BYTES + CRYPTO_PUBLICKEYBYTES);
   }
 
@@ -182,8 +191,7 @@ int crypto_sign_open(unsigned char *m,
                      unsigned long long *mlen,
                      const unsigned char *sm,
                      unsigned long long smlen,
-                     const unsigned char *pk,
-                     const unsigned char* public_seed)
+                     const unsigned char *pk)
 {
   unsigned long long i;
   unsigned long long leafidx=0;
@@ -193,6 +201,7 @@ int crypto_sign_open(unsigned char *m,
   unsigned char sig[CRYPTO_BYTES];
   unsigned char *sigp;
   unsigned char tpk[CRYPTO_PUBLICKEYBYTES];
+  const unsigned char* public_seed = get_public_seed_from_pk(pk);
 
   if(smlen < CRYPTO_BYTES)
     return -1;
@@ -209,6 +218,7 @@ int crypto_sign_open(unsigned char *m,
     for(i=0; i<MESSAGE_HASH_SEED_BYTES; i++)
       R[i] = sm[i];
 
+    // Message length
     int len = smlen - CRYPTO_BYTES;
 
     unsigned char *scratch = m;
