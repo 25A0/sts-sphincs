@@ -94,6 +94,37 @@ static int sign_leaf(const unsigned char* leaf, int start_height,
   return 0;
 }
 
+static int verify_leaf(unsigned char *root, int start_height,
+                       unsigned char *sigp, unsigned long long smlen,
+                       const unsigned char *pk,
+                       uint32_t *address)
+{
+  unsigned char wots_pk[WOTS_L*HASH_BYTES];
+  unsigned char pkhash[HASH_BYTES];
+  const unsigned char* public_seed = get_public_seed_from_pk(pk);
+  int i;
+  for(i=start_height;i<N_LEVELS;i++)
+  {
+    set_sphincs_subtree_layer(address, i);
+    wots_verify(wots_pk, sigp, root, public_seed, address);
+
+    sigp += WOTS_SIGBYTES;
+    smlen -= WOTS_SIGBYTES;
+
+    l_tree(pkhash, wots_pk, address, public_seed);
+    // validate_authpath(root, pkhash, leafidx & 0x1f, sigp, tpk, SUBTREE_HEIGHT);
+    validate_authpath(root, pkhash, address, public_seed, sigp, SUBTREE_HEIGHT);
+
+    // leafidx >>= SUBTREE_HEIGHT;
+    set_sphincs_subtree_node(address, get_sphincs_subtree_node(address) & ((1<<SUBTREE_HEIGHT)-1));
+    set_sphincs_subtree(address, get_sphincs_subtree(address) >> SUBTREE_HEIGHT);
+
+    sigp += SUBTREE_HEIGHT*HASH_BYTES;
+    smlen -= SUBTREE_HEIGHT*HASH_BYTES;
+  }
+  return 0;
+}
+
 int crypto_sign(unsigned char *sm,
                 unsigned long long *smlen,
                 const unsigned char *m,
@@ -209,13 +240,10 @@ int crypto_sign_open(unsigned char *m,
 {
   unsigned long long i;
   unsigned long long leafidx=0;
-  unsigned char wots_pk[WOTS_L*HASH_BYTES];
-  unsigned char pkhash[HASH_BYTES];
   unsigned char root[HASH_BYTES];
   unsigned char sig[CRYPTO_BYTES];
   unsigned char *sigp;
   unsigned char tpk[CRYPTO_PUBLICKEYBYTES];
-  const unsigned char* public_seed = get_public_seed_from_pk(pk);
 
   if(smlen < CRYPTO_BYTES)
     return -1;
@@ -276,25 +304,7 @@ int crypto_sign_open(unsigned char *m,
   sigp += HORST_SIGBYTES;
   smlen -= HORST_SIGBYTES;
 
-  for(i=0;i<N_LEVELS;i++)
-  {
-    set_sphincs_subtree_layer(address, i);
-    wots_verify(wots_pk, sigp, root, public_seed, address);
-
-    sigp += WOTS_SIGBYTES;
-    smlen -= WOTS_SIGBYTES;
-
-    l_tree(pkhash, wots_pk, address, public_seed);
-    // validate_authpath(root, pkhash, leafidx & 0x1f, sigp, tpk, SUBTREE_HEIGHT);
-    validate_authpath(root, pkhash, address, public_seed, sigp, SUBTREE_HEIGHT);
-
-    // leafidx >>= SUBTREE_HEIGHT;
-    set_sphincs_subtree_node(address, get_sphincs_subtree_node(address) & ((1<<SUBTREE_HEIGHT)-1));
-    set_sphincs_subtree(address, get_sphincs_subtree(address) >> SUBTREE_HEIGHT);
-
-    sigp += SUBTREE_HEIGHT*HASH_BYTES;
-    smlen -= SUBTREE_HEIGHT*HASH_BYTES;
-  }
+  verify_leaf(root, 0, sigp, smlen, pk, address);
 
   for(i=0;i<HASH_BYTES;i++)
     if(root[i] != tpk[i])
