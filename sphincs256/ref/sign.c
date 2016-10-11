@@ -62,6 +62,38 @@ static void hexdump_s(unsigned char *data, int start, int len)
   printf("\n");
 }
 
+static int sign_leaf(const unsigned char* leaf, int start_height,
+                     unsigned char *sm, unsigned long long *smlen,
+                     const unsigned char *sk,
+                     uint32_t *address)
+{
+  int i;
+  unsigned char root[HASH_BYTES];
+  memcpy(root, leaf, HASH_BYTES);
+  unsigned char seed[SEED_BYTES];
+  const unsigned char* public_seed = get_public_seed_from_sk(sk);
+  for(i=start_height;i<N_LEVELS;i++)
+  {
+    set_sphincs_subtree_layer(address, i);
+    // a.level = i;
+
+    get_seed(seed, sk, address); //XXX: Don't use the same address as for horst_sign here!
+    wots_sign(sm, root, seed, public_seed, address);
+    sm += WOTS_SIGBYTES;
+    *smlen += WOTS_SIGBYTES;
+
+    compute_authpath_wots(root,sm,address,sk,SUBTREE_HEIGHT, public_seed);
+    sm += SUBTREE_HEIGHT*HASH_BYTES;
+    *smlen += SUBTREE_HEIGHT*HASH_BYTES;
+
+    set_sphincs_subtree_node(address, get_sphincs_subtree_node(address) & ((1<<SUBTREE_HEIGHT)-1));
+    //a.subleaf = a.subtree & ((1<<SUBTREE_HEIGHT)-1);
+    set_sphincs_subtree(address, get_sphincs_subtree(address) >> SUBTREE_HEIGHT);
+    //a.subtree >>= SUBTREE_HEIGHT;
+  }
+  return 0;
+}
+
 int crypto_sign(unsigned char *sm,
                 unsigned long long *smlen,
                 const unsigned char *m,
@@ -157,26 +189,8 @@ int crypto_sign(unsigned char *sm,
 
   sm += horst_sigbytes;
   *smlen += horst_sigbytes;
-  
-  for(i=0;i<N_LEVELS;i++)
-  {
-    set_sphincs_subtree_layer(address, i);
-    // a.level = i;
 
-    get_seed(seed, tsk, address); //XXX: Don't use the same address as for horst_sign here!
-    wots_sign(sm, root, seed, public_seed, address);
-    sm += WOTS_SIGBYTES;
-    *smlen += WOTS_SIGBYTES;
-
-    compute_authpath_wots(root,sm,address,tsk,SUBTREE_HEIGHT, public_seed);
-    sm += SUBTREE_HEIGHT*HASH_BYTES;
-    *smlen += SUBTREE_HEIGHT*HASH_BYTES;
-
-    set_sphincs_subtree_node(address, get_sphincs_subtree_node(address) & ((1<<SUBTREE_HEIGHT)-1));
-    //a.subleaf = a.subtree & ((1<<SUBTREE_HEIGHT)-1);
-    set_sphincs_subtree(address, get_sphincs_subtree(address) >> SUBTREE_HEIGHT);
-    //a.subtree >>= SUBTREE_HEIGHT;
-  }
+  sign_leaf(root, 0, sm, smlen, tsk, address);
 
   zerobytes(tsk, CRYPTO_SECRETKEYBYTES);
 
