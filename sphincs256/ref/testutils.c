@@ -14,6 +14,7 @@ int compare(unsigned char *x, unsigned char *y, unsigned long long l)
 
 int run_test(int (*test_fun)(void), char* description)
 {
+  printf("Running %s...\n", description);
   int err = (*test_fun)();
   if(err) {
     printf("Fail in: %s\n", description);

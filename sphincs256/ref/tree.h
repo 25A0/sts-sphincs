@@ -22,7 +22,7 @@ void gen_leaf_wots(unsigned char leaf[HASH_BYTES],
 void treehash(unsigned char *node,
               int height,
               const unsigned char *sk,
-              uint32_t *address,
+              const uint32_t *address,
               const unsigned char *public_seed);
 
 void validate_authpath(unsigned char root[HASH_BYTES],

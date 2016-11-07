@@ -4,6 +4,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void hexdump_s(unsigned char *data, int start, int len)
+{
+  int i;
+  for(i = 0; i < len; i++) {
+    if(i % 32 == 0) printf("\n%04d: ", i);
+    printf("%02x", data[start + i]);
+    if(i % 2) printf(" ");
+  }
+  printf("\n");
+}
+
 void get_seed(unsigned char seed[SEED_BYTES],
               const unsigned char *sk,
               uint32_t *address)
@@ -103,7 +114,7 @@ void gen_leaf_wots(unsigned char leaf[HASH_BYTES],
 void treehash(unsigned char *node,
               int height,
               const unsigned char *sk,
-              uint32_t *address,
+              const uint32_t *subtree_address,
               const unsigned char *public_seed)
 {
 
@@ -111,15 +122,21 @@ void treehash(unsigned char *node,
   unsigned char stack[(height+1)*HASH_BYTES];
   unsigned int  stacklevels[height+1];
   unsigned int  stackoffset=0;
+  uint32_t address[ADDR_SIZE];
+  memcpy((unsigned char*)address, (unsigned char*) subtree_address, ADDR_BYTES);
 
-  uint32_t subtree_node = get_sphincs_subtree_node(address);
-  uint32_t lastnode = subtree_node + (1<<height);
+  uint32_t subtree_node = 0;
+  uint32_t lastnode = 1<<height;
 
   for( ; subtree_node < lastnode; subtree_node++)
   {
     set_sphincs_subtree_node(address, subtree_node);
     gen_leaf_wots(stack+stackoffset*HASH_BYTES, sk, address, public_seed);
 
+    if(0) {
+      printf("[treehash] WOTS PK for node %d is:", subtree_node);
+      hexdump_s(stack, stackoffset*HASH_BYTES, HASH_BYTES);
+    }
     stacklevels[stackoffset] = 0;
     stackoffset++;
 
