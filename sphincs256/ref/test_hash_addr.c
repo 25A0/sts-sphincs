@@ -5,7 +5,7 @@
 #include "testutils.h"
 
 int test01() {
-  uint32_t address[ADDR_SIZE];
+  unsigned char address[ADDR_BYTES];
   int layer = 8;
   set_sphincs_subtree_layer(address, layer);
   int ret_layer = get_sphincs_subtree_layer(address);
@@ -14,7 +14,7 @@ int test01() {
 }
 
 int test02() {
-  uint32_t address[ADDR_SIZE];
+  unsigned char address[ADDR_BYTES];
   int layer = 8;
   set_sphincs_subtree_layer(address, layer);
   int tree = 12345;
@@ -27,7 +27,7 @@ int test02() {
 }
 
 int test03() {
-  uint32_t address[ADDR_SIZE];
+  unsigned char address[ADDR_BYTES];
   int layer = 8;
   set_sphincs_subtree_layer(address, layer);
   int ret_layer = get_sphincs_subtree_layer(address);

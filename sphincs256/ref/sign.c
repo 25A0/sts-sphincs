@@ -36,7 +36,7 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
   randombytes(sk,CRYPTO_SECRETKEYBYTES);
 
   // Initialization of top-subtree address
-  uint32_t address[ADDR_SIZE];
+  unsigned char address[ADDR_BYTES];
   set_type(address, SPHINCS_ADDR);
   set_sphincs_subtree_layer(address, N_LEVELS - 1);
   set_sphincs_subtree(address, 0);
@@ -65,7 +65,7 @@ static void hexdump_s(unsigned char *data, int start, int len)
 static int sign_leaf(const unsigned char* leaf, int start_height,
                      unsigned char *sm, unsigned long long *smlen,
                      const unsigned char *sk,
-                     uint32_t *address)
+                     unsigned char *address)
 {
   int i;
   unsigned char root[HASH_BYTES];
@@ -97,7 +97,7 @@ static int sign_leaf(const unsigned char* leaf, int start_height,
 static int verify_leaf(unsigned char *root, int start_height,
                        unsigned char *sigp, unsigned long long smlen,
                        const unsigned char *pk,
-                       uint32_t *address)
+                       unsigned char *address)
 {
   unsigned char wots_pk[WOTS_L*HASH_BYTES];
   unsigned char pkhash[HASH_BYTES];
@@ -142,7 +142,7 @@ int crypto_sign(unsigned char *sm,
   unsigned char *pk;
   unsigned char tsk[CRYPTO_SECRETKEYBYTES];
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
-  uint32_t address[ADDR_SIZE];
+  unsigned char address[ADDR_BYTES];
 
   for(i=0;i<CRYPTO_SECRETKEYBYTES;i++)
     tsk[i] = sk[i];
@@ -286,7 +286,7 @@ int crypto_sign_open(unsigned char *m,
   for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
     leafidx ^= (((unsigned long long)sigp[i]) << 8*i);
 
-  uint32_t address[ADDR_SIZE];
+  unsigned char address[ADDR_BYTES];
   set_sphincs_subtree_layer(address, N_LEVELS);
   set_sphincs_subtree(address, leafidx >> SUBTREE_HEIGHT);
   set_sphincs_subtree_node(address, leafidx & ((1<<SUBTREE_HEIGHT)-1));

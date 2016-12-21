@@ -10,8 +10,7 @@ Public domain.
 
 #include <stdint.h>
 
-#define ADDR_SIZE 6
-#define ADDR_BYTES (ADDR_SIZE*4)
+#define ADDR_BYTES 24
 
 // To avoid that hash calls in different data structure use the
 // same address by mistake, the address type uniquely identifies
@@ -30,23 +29,22 @@ enum addr_type {
  * Address layout:
  *
  *For all types:
- * 0 |- 32b -| Address type
+ *  0      |-  8b -| Address type
  *
- * 1 |- 4b -   SPHINCS layer
- * 1  - 60b -
- * 2  -------| SPHINCS subtree address
+ *  1      |-  8b -| SPHINCS layer
+ *  2 -  9 |- 64b -| SPHINCS subtree address
  *
- * 3 |- 32b -| Node or leave within SPHINCS subtree
+ * 10 - 13 |- 32b -| Node or leave within SPHINCS subtree
  *
  * For type WOTS_ADDR:
- * 4 |- WOTS_LOG_L -| WOTS OTS index
- * 5 |- WOTS_LOG_W -| Position within OTS chain, or 0 for initial key expansion
+ * 14 - 17 |- WOTS_LOG_L -| WOTS OTS index
+ * 18 - 21 |- WOTS_LOG_W -| Position within OTS chain, or 0 for initial key expansion
  *
  * For type WOTS_L_ADDR:
- * 4 |-32b-| Node within WOTS L-tree
+ * 14 - 17 |-32b-| Node within WOTS L-tree
  *
  * For type HORST_ADDR:
- * 4 |-32b-| Node or leave within HORST tree
+ * 14 - 17 |-32b-| Node or leave within HORST tree
  */
 
 /*
@@ -60,31 +58,31 @@ uint32_t node_index(uint32_t tree_height, uint32_t layer, uint32_t node);
 /*
  * Sets the type of address, and clears the type-specific address field(s).
  */
-void set_type(uint32_t addr[ADDR_SIZE], enum addr_type type);
+void set_type(unsigned char addr[ADDR_BYTES], enum addr_type type);
 
 // SPHINCS
 
-void set_sphincs_subtree_layer(uint32_t addr[ADDR_SIZE], uint32_t level);
-uint32_t get_sphincs_subtree_layer(uint32_t addr[ADDR_SIZE]);
+void set_sphincs_subtree_layer(unsigned char addr[ADDR_BYTES], uint32_t level);
+uint32_t get_sphincs_subtree_layer(unsigned char addr[ADDR_BYTES]);
 
-void set_sphincs_subtree(uint32_t addr[ADDR_SIZE], uint64_t tree);
-uint64_t get_sphincs_subtree(uint32_t addr[ADDR_SIZE]);
+void set_sphincs_subtree(unsigned char addr[ADDR_BYTES], uint64_t tree);
+uint64_t get_sphincs_subtree(unsigned char addr[ADDR_BYTES]);
 
-void set_sphincs_subtree_node(uint32_t addr[ADDR_SIZE], uint32_t node);
-uint32_t get_sphincs_subtree_node(uint32_t addr[ADDR_SIZE]);
+void set_sphincs_subtree_node(unsigned char addr[ADDR_BYTES], uint32_t node);
+uint32_t get_sphincs_subtree_node(unsigned char addr[ADDR_BYTES]);
 
 // WOTS OTS
 
-void set_wots_ots_index(uint32_t addr[ADDR_SIZE], uint32_t ots);
+void set_wots_ots_index(unsigned char addr[ADDR_BYTES], uint32_t ots);
 
-void set_wots_chain_index(uint32_t addr[ADDR_SIZE], uint32_t chain);
+void set_wots_chain_index(unsigned char addr[ADDR_BYTES], uint32_t chain);
 
 // WOTS L-tree
 
-void set_wots_l_node(uint32_t addr[ADDR_SIZE], uint32_t node);
+void set_wots_l_node(unsigned char addr[ADDR_BYTES], uint32_t node);
 
 // HORST
 
-void set_horst_node(uint32_t addr[ADDR_SIZE], uint32_t node);
+void set_horst_node(unsigned char addr[ADDR_BYTES], uint32_t node);
 
 #endif

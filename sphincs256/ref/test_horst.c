@@ -35,8 +35,8 @@ int test01() {
   prg(seed, SEED_BYTES, seed);
 
   // construct address
-  uint32_t addr[ADDR_SIZE];
-  for(i = 0; i < ADDR_SIZE; i++) {
+  unsigned char addr[ADDR_BYTES];
+  for(i = 0; i < ADDR_BYTES; i++) {
     addr[i] = 0;
   }
 
@@ -99,10 +99,10 @@ int test02() {
   prg(seed, SEED_BYTES, seed);
 
   // construct address
-  uint32_t addr[ADDR_SIZE];
+  unsigned char addr[ADDR_BYTES];
 
   // Choose a random address
-  randombytes((unsigned char*) addr, ADDR_BYTES);
+  randombytes(addr, ADDR_BYTES);
 
   // Hash message
   unsigned char m_hash[MSGHASH_BYTES];

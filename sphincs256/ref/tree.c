@@ -6,7 +6,7 @@
 
 void get_seed(unsigned char seed[SEED_BYTES],
               const unsigned char *sk,
-              uint32_t *address)
+              unsigned char *address)
 {
 #if (N_LEVELS > 15) && (N_LEVELS < 8)
 #error "Need to have 8 <= N_LEVELS <= 15"
@@ -50,7 +50,7 @@ void get_seed(unsigned char seed[SEED_BYTES],
 // that is being constructed
 static void hash_nodes(unsigned char *parent,
                        const unsigned char *nodes,
-                       const uint32_t *address,
+                       const unsigned char *address,
                        const unsigned char *public_seed)
 {
   hash_2n_n_addr_seeded(parent, nodes, (unsigned char*) address, public_seed);
@@ -60,7 +60,7 @@ static void hash_nodes(unsigned char *parent,
 // the type of the address will be changed to WOTS_L_ADDR.
 void l_tree(unsigned char *leaf,
             unsigned char *wots_pk,
-            uint32_t *address,
+            unsigned char *address,
             const unsigned char *public_seed)
 {
   set_type(address, WOTS_L_ADDR);
@@ -87,7 +87,7 @@ void l_tree(unsigned char *leaf,
 
 void gen_leaf_wots(unsigned char leaf[HASH_BYTES],
                    const unsigned char *sk,
-                   uint32_t *addr,
+                   unsigned char *addr,
                    const unsigned char *public_seed)
 {
   unsigned char seed[SEED_BYTES];
@@ -103,7 +103,7 @@ void gen_leaf_wots(unsigned char leaf[HASH_BYTES],
 void treehash(unsigned char *node,
               int height,
               const unsigned char *sk,
-              uint32_t *address,
+              unsigned char *address,
               const unsigned char *public_seed)
 {
 
@@ -153,7 +153,7 @@ void treehash(unsigned char *node,
 // that is authenticated by the auth path
 void validate_authpath(unsigned char root[HASH_BYTES],
                        const unsigned char leaf[HASH_BYTES],
-                       uint32_t *address,
+                       unsigned char *address,
                        const unsigned char *public_seed,
                        const unsigned char *authpath,
                        unsigned int height)
@@ -212,7 +212,7 @@ void validate_authpath(unsigned char root[HASH_BYTES],
 
 void compute_authpath_wots(unsigned char root[HASH_BYTES],
                            unsigned char *authpath,
-                           uint32_t *address,
+                           unsigned char *address,
                            const unsigned char *sk,
                            unsigned int height,
                            const unsigned char *public_seed)

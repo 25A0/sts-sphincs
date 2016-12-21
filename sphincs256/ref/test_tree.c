@@ -15,9 +15,9 @@ int test01()
 
   unsigned char* public_seed = sk + SEED_BYTES;
 
-  uint32_t address[ADDR_SIZE];
+  unsigned char address[ADDR_BYTES];
   int i;
-  for(i = 0; i < ADDR_SIZE; i++) {
+  for(i = 0; i < ADDR_BYTES; i++) {
     address[i] = 0;
   }
 
