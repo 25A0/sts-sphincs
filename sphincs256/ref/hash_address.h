@@ -25,6 +25,28 @@ enum addr_type {
   NUM_TYPES // helper value to find out how many types there are
 };
 
+struct hash_addr{
+  // The struct does not contain the address type.
+  // Whenever the address type changes, the type-specific
+  // fields need to be reset. To enforce this, the type
+  // needs to be changed with the set_type function.
+
+  uint8_t *subtree_layer;
+  uint64_t *subtree_address;
+  uint32_t *subtree_node;
+
+  // For type WOTS_ADDR:
+  uint8_t *wots_ots_index;
+  uint8_t *wots_ots_position;
+
+  // For type WOTS_L_ADDR:
+  uint32_t *wots_l_tree_node;
+
+  // For type HORST_ADDR:
+  uint32_t *horst_node;
+};
+struct hash_addr init_hash_addr(unsigned char *bytes);
+
 /*
  * Address layout:
  *

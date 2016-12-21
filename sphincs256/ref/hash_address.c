@@ -24,6 +24,27 @@ void set_type(unsigned char addr[ADDR_BYTES], enum addr_type type)
   }
 }
 
+struct hash_addr init_hash_addr(unsigned char *bytes)
+{
+  struct hash_addr addr;
+  // For all types
+  addr.subtree_layer = (uint8_t *) (bytes + 1);
+  addr.subtree_address = (uint64_t *) (bytes + 2);
+  addr.subtree_node = (uint32_t *) (bytes + 10);
+
+  // For type WOTS_ADDR:
+  addr.wots_ots_index = (uint8_t *) (bytes + 14);
+  addr.wots_ots_position = (uint8_t *) (bytes + 18);
+
+  // For type WOTS_L_ADDR:
+  addr.wots_l_tree_node = (uint32_t *) (bytes + 14);
+
+  // For type HORST_ADDR:
+  addr.horst_node = (uint32_t *) (bytes + 14);
+
+  return addr;
+}
+
 // SPHINCS
 
 void set_sphincs_subtree_layer(unsigned char addr[ADDR_BYTES], uint32_t level)
