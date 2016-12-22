@@ -5,13 +5,13 @@
 
 static void expand_seed(unsigned char out[WOTS_L*HASH_BYTES],
                         const unsigned char sk[SEED_BYTES],
-                        uint32_t addr[ADDR_SIZE])
+                        unsigned char addr[ADDR_BYTES])
 {
   int i;
   for(i = 0; i < WOTS_L; i++) {
     set_wots_ots_index(addr, i);
     set_wots_chain_index(addr, 0);
-    hash_n_n_addr(out + i * HASH_BYTES, sk, (unsigned char*) addr);
+    hash_n_n_addr(out + i * HASH_BYTES, sk, addr);
   }
 }
 
@@ -24,7 +24,7 @@ static void expand_seed(unsigned char out[WOTS_L*HASH_BYTES],
 void gen_chain(unsigned char out[HASH_BYTES],
                const unsigned char in[HASH_BYTES],
                const unsigned char seed[PUBLIC_SEED_BYTES],
-               uint32_t addr[ADDR_SIZE],
+               unsigned char addr[ADDR_BYTES],
                int chainlen,
                int start_link)
 {
@@ -65,7 +65,7 @@ void gen_chain(unsigned char out[HASH_BYTES],
 void wots_pkgen(unsigned char pk[WOTS_L*HASH_BYTES],
                 const unsigned char sk[SEED_BYTES],
                 const unsigned char seed[PUBLIC_SEED_BYTES],
-                uint32_t addr[ADDR_SIZE])
+                unsigned char addr[ADDR_BYTES])
 {
   int i;
   set_type(addr, WOTS_ADDR);
@@ -81,7 +81,7 @@ void wots_sign(unsigned char sig[WOTS_L*HASH_BYTES],
                const unsigned char msg[HASH_BYTES],
                const unsigned char sk[SEED_BYTES],
                const unsigned char seed[PUBLIC_SEED_BYTES],
-               uint32_t addr[ADDR_SIZE])
+               unsigned char addr[ADDR_BYTES])
 {
   int basew[WOTS_L],i,c=0;
 
@@ -142,7 +142,7 @@ void wots_verify(unsigned char pk[WOTS_L*HASH_BYTES],
                  const unsigned char sig[WOTS_L*HASH_BYTES],
                  const unsigned char msg[HASH_BYTES],
                  const unsigned char seed[PUBLIC_SEED_BYTES],
-                 uint32_t addr[ADDR_SIZE])
+                 unsigned char addr[ADDR_BYTES])
 {
   int basew[WOTS_L],i,c=0;
 
