@@ -8,9 +8,10 @@ static void expand_seed(unsigned char out[WOTS_L*HASH_BYTES],
                         unsigned char addr[ADDR_BYTES])
 {
   int i;
+  struct hash_addr address = init_hash_addr(addr);
   for(i = 0; i < WOTS_L; i++) {
-    set_wots_ots_index(addr, i);
-    set_wots_chain_index(addr, 0);
+    *address.wots_ots_index = i;
+    *address.wots_ots_position = 0;
     hash_n_n_addr(out + i * HASH_BYTES, sk, addr);
   }
 }
@@ -28,6 +29,7 @@ void gen_chain(unsigned char out[HASH_BYTES],
                int chainlen,
                int start_link)
 {
+  struct hash_addr address = init_hash_addr(addr);
   if(chainlen) {
     int n;
 
@@ -39,10 +41,10 @@ void gen_chain(unsigned char out[HASH_BYTES],
     unsigned char kr[2 * HASH_BYTES];
 
     // Note that chainlen will always be > 0
-    set_wots_chain_index(addr, 2*start_link);
+    *address.wots_ots_index = 2*start_link;
     hash_n_n_addr(kr, seed, (unsigned char*) addr);
 
-    set_wots_chain_index(addr, 2*start_link + 1);
+    *address.wots_ots_index = 2*start_link + 1;
     hash_n_n_addr(kr + HASH_BYTES, seed, (unsigned char*) addr);
 
     for (n = 0; n < HASH_BYTES; ++n) {
@@ -70,8 +72,9 @@ void wots_pkgen(unsigned char pk[WOTS_L*HASH_BYTES],
   int i;
   set_type(addr, WOTS_ADDR);
   expand_seed(pk, sk, addr);
+  struct hash_addr address = init_hash_addr(addr);
   for(i=0;i<WOTS_L;i++) {
-    set_wots_ots_index(addr, i);
+    *address.wots_ots_index = i;
     gen_chain(pk+i*HASH_BYTES, pk+i*HASH_BYTES, seed, addr, WOTS_W-1, 0);
   }
 }
@@ -100,10 +103,11 @@ void wots_sign(unsigned char sig[WOTS_L*HASH_BYTES],
     c >>= 4;
   }
 
+  struct hash_addr address = init_hash_addr(addr);
   set_type(addr, WOTS_ADDR);
   expand_seed(sig, sk, addr);
   for(i=0;i<WOTS_L;i++) {
-    set_wots_ots_index(addr, i);
+    *address.wots_ots_index = i;
     gen_chain(sig+i*HASH_BYTES, sig+i*HASH_BYTES, seed, addr, basew[i], 0);
   }
 
@@ -126,10 +130,11 @@ void wots_sign(unsigned char sig[WOTS_L*HASH_BYTES],
     c >>= 2;
   }
 
+  struct hash_addr address = init_hash_addr(addr);
   set_type(addr, WOTS_ADDR);
   expand_seed(sig, sk, addr);
   for(i=0;i<WOTS_L;i++) {
-    set_wots_ots_index(addr, i);
+    *address.wots_ots_index = i;
     gen_chain(sig+i*HASH_BYTES, sig+i*HASH_BYTES, seed, addr, basew[i], 0);
   }
 
@@ -161,9 +166,10 @@ void wots_verify(unsigned char pk[WOTS_L*HASH_BYTES],
     c >>= 4;
   }
 
+  struct hash_addr address = init_hash_addr(addr);
   set_type(addr, WOTS_ADDR);
   for(i=0;i<WOTS_L;i++) {
-    set_wots_ots_index(addr, i);
+    *address.wots_ots_index = i;
     gen_chain(pk+i*HASH_BYTES, sig+i*HASH_BYTES, seed, addr, WOTS_W-1-basew[i], basew[i]);
   }
 
@@ -186,9 +192,10 @@ void wots_verify(unsigned char pk[WOTS_L*HASH_BYTES],
     c >>= 2;
   }
 
+  struct hash_addr address = init_hash_addr(addr);
   set_type(addr, WOTS_ADDR);
   for(i=0;i<WOTS_L;i++) {
-    set_wots_ots_index(addr, i);
+    *address.wots_ots_index = i;
     gen_chain(pk+i*HASH_BYTES, sig+i*HASH_BYTES, seed, addr, WOTS_W-1-basew[i], basew[i]);
   }
 

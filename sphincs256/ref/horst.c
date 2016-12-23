@@ -22,6 +22,7 @@ int horst_sign(unsigned char *sig, unsigned char pk[HASH_BYTES], unsigned long l
   int i,j,k;
   int sigpos = 0;
 
+  struct hash_addr address = init_hash_addr(addr);
   set_type(addr, HORST_ADDR);
 
   unsigned char tree[(2*HORST_T-1)*HASH_BYTES]; /* replace by something more memory-efficient? */
@@ -35,7 +36,7 @@ int horst_sign(unsigned char *sig, unsigned char pk[HASH_BYTES], unsigned long l
 
   // Generate pk leaves
   for(i=0;i<HORST_T;i++) {
-    set_horst_node(addr, i);
+    *address.horst_node = i;
     hash_n_n_addr(tree+(HORST_T-1+i)*HASH_BYTES,
                   sk+i*HORST_SKBYTES,
                   (const unsigned char*) addr);
@@ -49,7 +50,7 @@ int horst_sign(unsigned char *sig, unsigned char pk[HASH_BYTES], unsigned long l
     offset_in = (1<<(HORST_LOGT-i))-1;
     offset_out = (1<<(HORST_LOGT-i-1))-1;
     for(j=0;j < (1<<(HORST_LOGT-i-1));j++) {
-      set_horst_node(addr, idx++);
+      *address.horst_node = idx++;
       hash_2n_n_addr(tree+(offset_out+j)*HASH_BYTES,
                      tree+(offset_in+2*j)*HASH_BYTES,
                      (const unsigned char*) addr);
@@ -108,6 +109,7 @@ int horst_verify(unsigned char *pk,
   level10 = sig;
   sig+=64*HASH_BYTES;
 
+  struct hash_addr address = init_hash_addr(addr);
   set_type(addr, HORST_ADDR);
 
   for(i=0;i<HORST_K;i++)
@@ -120,7 +122,7 @@ int horst_verify(unsigned char *pk,
 
     if(!(idx&1))
     {
-      set_horst_node(addr, idx);
+      *address.horst_node = idx;
       hash_n_n_addr(buffer,
                     sig,
                     (const unsigned char*) addr);
@@ -129,7 +131,7 @@ int horst_verify(unsigned char *pk,
     }
     else
     {
-      set_horst_node(addr, idx);
+      *address.horst_node = idx;
       hash_n_n_addr(buffer + HASH_BYTES,
                     sig,
                     (const unsigned char*) addr);
@@ -143,7 +145,7 @@ int horst_verify(unsigned char *pk,
     {
       idx = idx>>1; // parent node
 
-      set_horst_node(addr, offset + idx);
+      *address.horst_node = offset + idx;
       if(!(idx&1))
       {
         hash_2n_n_addr(buffer,
@@ -166,7 +168,7 @@ int horst_verify(unsigned char *pk,
     }
 
     idx = idx>>1; // parent node
-    set_horst_node(addr, node_index(HORST_LOGT, HORST_LOGT-6, idx));
+    *address.horst_node = node_index(HORST_LOGT, HORST_LOGT-6, idx);
     hash_2n_n_addr(buffer,
                    buffer,
                    (const unsigned char*) addr);
@@ -180,41 +182,41 @@ int horst_verify(unsigned char *pk,
   idx = node_index(HORST_LOGT, HORST_LOGT - 6 + 1, 0);
   // Compute root from level10
   for(j=0;j<32;j++) {
-    set_horst_node(addr, idx++);
+    *address.horst_node = idx++;
     hash_2n_n_addr(buffer+j*HASH_BYTES,
                    level10+2*j*HASH_BYTES,
                    (const unsigned char*) addr);
   }
   // Hash from level 11 to 12
   for(j=0;j<16;j++) {
-    set_horst_node(addr, idx++);
+    *address.horst_node = idx++;
     hash_2n_n_addr(buffer+j*HASH_BYTES,
                    buffer+2*j*HASH_BYTES,
                    (const unsigned char*) addr);
   }
   // Hash from level 12 to 13
   for(j=0;j<8;j++) {
-    set_horst_node(addr, idx++);
+    *address.horst_node = idx++;
     hash_2n_n_addr(buffer+j*HASH_BYTES,
                    buffer+2*j*HASH_BYTES,
                    (const unsigned char*) addr);
   }
   // Hash from level 13 to 14
   for(j=0;j<4;j++) {
-    set_horst_node(addr, idx++);
+    *address.horst_node = idx++;
     hash_2n_n_addr(buffer+j*HASH_BYTES,
                    buffer+2*j*HASH_BYTES,
                    (const unsigned char*) addr);
   }
   // Hash from level 14 to 15
   for(j=0;j<2;j++) {
-    set_horst_node(addr, idx++);
+    *address.horst_node = idx++;
     hash_2n_n_addr(buffer+j*HASH_BYTES,
                    buffer+2*j*HASH_BYTES,
                    (const unsigned char*) addr);
   }
   // Hash from level 15 to 16
-  set_horst_node(addr, idx++);
+  *address.horst_node = idx++;
   hash_2n_n_addr(pk,
                  buffer,
                  (const unsigned char*) addr);

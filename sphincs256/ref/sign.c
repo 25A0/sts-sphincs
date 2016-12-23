@@ -38,9 +38,10 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
   // Initialization of top-subtree address
   unsigned char address[ADDR_BYTES];
   set_type(address, SPHINCS_ADDR);
-  set_sphincs_subtree_layer(address, N_LEVELS - 1);
-  set_sphincs_subtree(address, 0);
-  set_sphincs_subtree_node(address, 0);
+  struct hash_addr addr = init_hash_addr(address);
+  *addr.subtree_layer = N_LEVELS - 1;
+  *addr.subtree_address = 0;
+  *addr.subtree_node = 0;
 
   // Construct top subtree
   treehash(pk, SUBTREE_HEIGHT, sk, address, get_public_seed_from_sk(sk));
@@ -72,10 +73,10 @@ static int sign_leaf(const unsigned char* leaf, int start_height,
   memcpy(root, leaf, HASH_BYTES);
   unsigned char seed[SEED_BYTES];
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
+  struct hash_addr addr = init_hash_addr(address);
   for(i=start_height;i<N_LEVELS;i++)
   {
-    set_sphincs_subtree_layer(address, i);
-    // a.level = i;
+    *addr.subtree_layer = i;
 
     get_seed(seed, sk, address); //XXX: Don't use the same address as for horst_sign here!
     wots_sign(sm, root, seed, public_seed, address);
@@ -86,10 +87,8 @@ static int sign_leaf(const unsigned char* leaf, int start_height,
     sm += SUBTREE_HEIGHT*HASH_BYTES;
     *smlen += SUBTREE_HEIGHT*HASH_BYTES;
 
-    set_sphincs_subtree_node(address, get_sphincs_subtree_node(address) & ((1<<SUBTREE_HEIGHT)-1));
-    //a.subleaf = a.subtree & ((1<<SUBTREE_HEIGHT)-1);
-    set_sphincs_subtree(address, get_sphincs_subtree(address) >> SUBTREE_HEIGHT);
-    //a.subtree >>= SUBTREE_HEIGHT;
+    *addr.subtree_node = *addr.subtree_node & ((1<<SUBTREE_HEIGHT)-1);
+    *addr.subtree_address = *addr.subtree_address >> SUBTREE_HEIGHT;
   }
   return 0;
 }
@@ -102,10 +101,11 @@ static int verify_leaf(unsigned char *root, int start_height,
   unsigned char wots_pk[WOTS_L*HASH_BYTES];
   unsigned char pkhash[HASH_BYTES];
   const unsigned char* public_seed = get_public_seed_from_pk(pk);
+  struct hash_addr addr = init_hash_addr(address);
   int i;
   for(i=start_height;i<N_LEVELS;i++)
   {
-    set_sphincs_subtree_layer(address, i);
+    *addr.subtree_layer = i;
     wots_verify(wots_pk, sigp, root, public_seed, address);
 
     sigp += WOTS_SIGBYTES;
@@ -116,8 +116,8 @@ static int verify_leaf(unsigned char *root, int start_height,
     validate_authpath(root, pkhash, address, public_seed, sigp, SUBTREE_HEIGHT);
 
     // leafidx >>= SUBTREE_HEIGHT;
-    set_sphincs_subtree_node(address, get_sphincs_subtree_node(address) & ((1<<SUBTREE_HEIGHT)-1));
-    set_sphincs_subtree(address, get_sphincs_subtree(address) >> SUBTREE_HEIGHT);
+    *addr.subtree_node = *addr.subtree_node & ((1<<SUBTREE_HEIGHT)-1);
+    *addr.subtree_address = *addr.subtree_address >> SUBTREE_HEIGHT;
 
     sigp += SUBTREE_HEIGHT*HASH_BYTES;
     smlen -= SUBTREE_HEIGHT*HASH_BYTES;
@@ -143,6 +143,7 @@ int crypto_sign(unsigned char *sm,
   unsigned char tsk[CRYPTO_SECRETKEYBYTES];
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
   unsigned char address[ADDR_BYTES];
+  struct hash_addr addr = init_hash_addr(address);
 
   for(i=0;i<CRYPTO_SECRETKEYBYTES;i++)
     tsk[i] = sk[i];
@@ -182,9 +183,9 @@ int crypto_sign(unsigned char *sm,
 
     // Initialization of top-subtree address
     set_type(address, SPHINCS_ADDR);
-    set_sphincs_subtree_layer(address, N_LEVELS - 1);
-    set_sphincs_subtree(address, 0);
-    set_sphincs_subtree_node(address, 0);
+    *addr.subtree_layer = N_LEVELS - 1;
+    *addr.subtree_address = 0;
+    *addr.subtree_node = 0;
 
     pk = scratch + MESSAGE_HASH_SEED_BYTES;
 
@@ -197,9 +198,9 @@ int crypto_sign(unsigned char *sm,
     msg_hash(m_h, scratch, mlen + MESSAGE_HASH_SEED_BYTES + CRYPTO_PUBLICKEYBYTES);
   }
 
-  set_sphincs_subtree_layer(address, N_LEVELS);
-  set_sphincs_subtree(address, leafidx >> SUBTREE_HEIGHT);
-  set_sphincs_subtree_node(address, leafidx & ((1<<SUBTREE_HEIGHT)-1));
+  *addr.subtree_layer = N_LEVELS;
+  *addr.subtree_address = leafidx >> SUBTREE_HEIGHT;
+  *addr.subtree_node = leafidx & ((1<<SUBTREE_HEIGHT)-1);
 
   *smlen = 0;
 
@@ -287,9 +288,10 @@ int crypto_sign_open(unsigned char *m,
     leafidx ^= (((unsigned long long)sigp[i]) << 8*i);
 
   unsigned char address[ADDR_BYTES];
-  set_sphincs_subtree_layer(address, N_LEVELS);
-  set_sphincs_subtree(address, leafidx >> SUBTREE_HEIGHT);
-  set_sphincs_subtree_node(address, leafidx & ((1<<SUBTREE_HEIGHT)-1));
+  struct hash_addr addr = init_hash_addr(address);
+  *addr.subtree_layer = N_LEVELS;
+  *addr.subtree_address = leafidx >> SUBTREE_HEIGHT;
+  *addr.subtree_node = leafidx & ((1<<SUBTREE_HEIGHT)-1);
 
   horst_verify(root,
                sigp+(TOTALTREE_HEIGHT+7)/8,

@@ -70,7 +70,8 @@ int test02()
     addr[i] = 0;
   }
   set_type(addr, WOTS_ADDR);
-  set_wots_ots_index(addr, 0);
+  struct hash_addr address = init_hash_addr(addr);
+  *address.wots_ots_index = 0;
 
   unsigned char out[HASH_BYTES];
   int err = 0;

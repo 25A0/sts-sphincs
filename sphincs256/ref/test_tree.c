@@ -25,7 +25,8 @@ int test01()
   unsigned char authpath[SUBTREE_HEIGHT*HASH_BYTES];
 
   // Compute the leaf on which the auth path is based
-  set_sphincs_subtree_node(address, 0);
+  struct hash_addr addr = init_hash_addr(address);
+  *addr.subtree_node = 0;
 
   unsigned char seed[SEED_BYTES];
   get_seed(seed, sk, address);

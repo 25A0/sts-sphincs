@@ -63,13 +63,14 @@ void l_tree(unsigned char *leaf,
             unsigned char *address,
             const unsigned char *public_seed)
 {
+  struct hash_addr addr = init_hash_addr(address);
   set_type(address, WOTS_L_ADDR);
   int l = WOTS_L;
   int i,j = 0;
   for(i=0;i<WOTS_LOG_L;i++)
   {
     for(j=0 ;j < (l>>1);j++) {
-      set_wots_l_node(address, node_index(WOTS_LOG_L, i+1, j << 1));
+      *addr.wots_l_tree_node = node_index(WOTS_LOG_L, i+1, j << 1);
       hash_nodes(wots_pk+j*HASH_BYTES,wots_pk+j*2*HASH_BYTES, address, public_seed);
     }
 
@@ -112,12 +113,13 @@ void treehash(unsigned char *node,
   unsigned int  stacklevels[height+1];
   unsigned int  stackoffset=0;
 
-  uint32_t subtree_node = get_sphincs_subtree_node(address);
+  struct hash_addr addr = init_hash_addr(address);
+  uint32_t subtree_node = *addr.subtree_node;
   uint32_t lastnode = subtree_node + (1<<height);
 
   for( ; subtree_node < lastnode; subtree_node++)
   {
-    set_sphincs_subtree_node(address, subtree_node);
+    *addr.subtree_node = subtree_node;
     gen_leaf_wots(stack+stackoffset*HASH_BYTES, sk, address, public_seed);
 
     stacklevels[stackoffset] = 0;
@@ -130,10 +132,7 @@ void treehash(unsigned char *node,
       layer = stacklevels[stackoffset-1]+1;
       // the index of the node in that layer is the current subtree_node,
       // shifted to the right by the height of the current layer.
-      set_sphincs_subtree_node(address,
-                               node_index(height,
-                                          layer,
-                                          subtree_node >> layer));
+      *addr.subtree_node = node_index(height, layer, subtree_node >> layer);
       set_type(address, SPHINCS_ADDR);
 
       hash_nodes(stack+(stackoffset-2)*HASH_BYTES,
@@ -160,7 +159,8 @@ void validate_authpath(unsigned char root[HASH_BYTES],
 {
   int i,j;
   unsigned char buffer[2*HASH_BYTES];
-  unsigned int leafidx = get_sphincs_subtree_node(address);
+  struct hash_addr addr = init_hash_addr(address);
+  unsigned int leafidx = *addr.subtree_node;
   // Copy of the leaf index so that we can restore it later
   unsigned int idx = leafidx;
 
@@ -187,7 +187,7 @@ void validate_authpath(unsigned char root[HASH_BYTES],
     leafidx >>= 1;
     if(leafidx&1)
     {
-      set_sphincs_subtree_node(address, node_index(height, i+1, leafidx));
+      *addr.subtree_node = node_index(height, i+1, leafidx);
       hash_nodes(buffer+HASH_BYTES,buffer,address, public_seed);
 
       for(j=0;j<HASH_BYTES;j++)
@@ -195,7 +195,7 @@ void validate_authpath(unsigned char root[HASH_BYTES],
     }
     else
     {
-      set_sphincs_subtree_node(address, node_index(height, i+1, leafidx));
+      *addr.subtree_node = node_index(height, i+1, leafidx);
       hash_nodes(buffer,buffer,address, public_seed);
 
       for(j=0;j<HASH_BYTES;j++)
@@ -203,11 +203,11 @@ void validate_authpath(unsigned char root[HASH_BYTES],
     }
     authpath += HASH_BYTES;
   }
-  set_sphincs_subtree_node(address, node_index(height, height, 0));
+  *addr.subtree_node = node_index(height, height, 0);
   hash_nodes(root,buffer,address, public_seed);
 
   // reset leafnode index in address
-  set_sphincs_subtree_node(address, idx);
+  *addr.subtree_node = idx;
 }
 
 void compute_authpath_wots(unsigned char root[HASH_BYTES],
@@ -218,8 +218,9 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
                            const unsigned char *public_seed)
 {
   int i, idx, j;
+  struct hash_addr addr = init_hash_addr(address);
   // The index of the node that will be authenticated with the auth path
-  int node = get_sphincs_subtree_node(address);
+  int node = *addr.subtree_node;
 
   unsigned char tree[2*(1<<SUBTREE_HEIGHT)*HASH_BYTES];
   unsigned char seed[(1<<SUBTREE_HEIGHT)*SEED_BYTES];
@@ -227,12 +228,12 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
 
   // level 0
   for(i = 0; i < (1<<SUBTREE_HEIGHT); i++) {
-    set_sphincs_subtree_node(address, i);
+    *addr.subtree_node = i;
     get_seed(seed + i * SEED_BYTES, sk, address);
   }
 
   for(i = 0; i < (1<<SUBTREE_HEIGHT); i++) {
-    set_sphincs_subtree_node(address, i);
+    *addr.subtree_node = i;
     wots_pkgen(pk + i * WOTS_L*HASH_BYTES,
                seed + i * SEED_BYTES,
                public_seed,
@@ -240,7 +241,7 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
   }
 
   for(i = 0; i < (1<<SUBTREE_HEIGHT); i++) {
-    set_sphincs_subtree_node(address, i);
+    *addr.subtree_node = i;
     l_tree(tree + (1<<SUBTREE_HEIGHT)*HASH_BYTES + i * HASH_BYTES,
            pk  + i * WOTS_L*HASH_BYTES,
            address,
@@ -255,7 +256,7 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
   for (i = (1<<SUBTREE_HEIGHT); i > 0; i>>=1)
   {
     for (j = 0; j < i; j+=2) {
-      set_sphincs_subtree_node(address, node_index(height, level+1, j >> 1));
+      *addr.subtree_node = node_index(height, level+1, j >> 1);
       hash_nodes(tree + (i>>1)*HASH_BYTES + (j>>1) * HASH_BYTES,
                  tree + i*HASH_BYTES + j * HASH_BYTES,
                  address,
@@ -276,5 +277,5 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
   memcpy(root, tree+HASH_BYTES, HASH_BYTES);
 
   // reset sphincs node address
-  set_sphincs_subtree_node(address, idx);
+  *addr.subtree_node = idx;
 }
