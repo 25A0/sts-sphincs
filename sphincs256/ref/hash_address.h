@@ -82,29 +82,4 @@ uint32_t node_index(uint32_t tree_height, uint32_t layer, uint32_t node);
  */
 void set_type(unsigned char addr[ADDR_BYTES], enum addr_type type);
 
-// SPHINCS
-
-void set_sphincs_subtree_layer(unsigned char addr[ADDR_BYTES], uint32_t level);
-uint32_t get_sphincs_subtree_layer(unsigned char addr[ADDR_BYTES]);
-
-void set_sphincs_subtree(unsigned char addr[ADDR_BYTES], uint64_t tree);
-uint64_t get_sphincs_subtree(unsigned char addr[ADDR_BYTES]);
-
-void set_sphincs_subtree_node(unsigned char addr[ADDR_BYTES], uint32_t node);
-uint32_t get_sphincs_subtree_node(unsigned char addr[ADDR_BYTES]);
-
-// WOTS OTS
-
-void set_wots_ots_index(unsigned char addr[ADDR_BYTES], uint32_t ots);
-
-void set_wots_chain_index(unsigned char addr[ADDR_BYTES], uint32_t chain);
-
-// WOTS L-tree
-
-void set_wots_l_node(unsigned char addr[ADDR_BYTES], uint32_t node);
-
-// HORST
-
-void set_horst_node(unsigned char addr[ADDR_BYTES], uint32_t node);
-
 #endif
