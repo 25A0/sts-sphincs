@@ -38,11 +38,12 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
   randombytes(sk,CRYPTO_SECRETKEYBYTES);
 
   // Initialization of top-subtree address
-  uint32_t address[ADDR_SIZE];
+  unsigned char address[ADDR_BYTES];
   set_type(address, SPHINCS_ADDR);
-  set_sphincs_subtree_layer(address, N_LEVELS - 1);
-  set_sphincs_subtree(address, 0);
-  set_sphincs_subtree_node(address, 0);
+  struct hash_addr addr = init_hash_addr(address);
+  *addr.subtree_layer = N_LEVELS - 1;
+  *addr.subtree_address = 0;
+  *addr.subtree_node = 0;
 
   // Construct top subtree
   treehash(pk, SUBTREE_HEIGHT, sk, address, get_public_seed_from_sk(sk));
@@ -67,19 +68,19 @@ static void hexdump_s(unsigned char *data, int start, int len)
 static int sign_leaf(const unsigned char* leaf, int start_height, int end_height,
                      unsigned char *sm, unsigned long long *smlen,
                      const unsigned char *sk,
-                     const uint32_t *leaf_address)
+                     unsigned char *leaf_address)
 {
   int i;
   unsigned char root[HASH_BYTES];
   memcpy(root, leaf, HASH_BYTES);
-  uint32_t address[ADDR_SIZE];
-  memcpy((unsigned char*)address, (unsigned char*) leaf_address, ADDR_BYTES);
+  unsigned char address[ADDR_BYTES];
+  memcpy(address, leaf_address, ADDR_BYTES);
   unsigned char seed[SEED_BYTES];
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
-  for(i = start_height; i < end_height; i++)
+  struct hash_addr addr = init_hash_addr(address);
+  for(i = start_height; i < N_LEVELS; i++)
   {
-    set_sphincs_subtree_layer(address, i);
-    // a.level = i;
+    *addr.subtree_layer = i;
 
     get_seed(seed, sk, address); //XXX: Don't use the same address as for horst_sign here!
     wots_sign(sm, root, seed, public_seed, address);
@@ -90,18 +91,8 @@ static int sign_leaf(const unsigned char* leaf, int start_height, int end_height
     sm += SUBTREE_HEIGHT*HASH_BYTES;
     *smlen += SUBTREE_HEIGHT*HASH_BYTES;
 
-    if(1) {
-      printf("[sign_leaf] WOTS PK for node %d is:", i);
-      hexdump_s(root, 0, HASH_BYTES);
-    }
-    set_sphincs_subtree_node(address, get_sphincs_subtree_node(address) & ((1<<SUBTREE_HEIGHT)-1));
-    //a.subleaf = a.subtree & ((1<<SUBTREE_HEIGHT)-1);
-    set_sphincs_subtree(address, get_sphincs_subtree(address) >> SUBTREE_HEIGHT);
-    //a.subtree >>= SUBTREE_HEIGHT;
-    if(0) {
-      printf("Root of signed subtree on layer %d:", i);
-      hexdump_s(root, 0, HASH_BYTES);
-    }
+    *addr.subtree_node = *addr.subtree_node & ((1<<SUBTREE_HEIGHT)-1);
+    *addr.subtree_address = *addr.subtree_address >> SUBTREE_HEIGHT;
   }
   memcpy(leaf, root, HASH_BYTES);
   return 0;
@@ -110,23 +101,18 @@ static int sign_leaf(const unsigned char* leaf, int start_height, int end_height
 static int verify_leaf(unsigned char *root, int start_height, int end_height,
                        unsigned char *sigp, unsigned long long smlen,
                        const unsigned char *pk,
-                       const uint32_t *root_address)
+                       unsigned char *root_address)
 {
   unsigned char wots_pk[WOTS_L*HASH_BYTES];
   unsigned char pkhash[HASH_BYTES];
-  uint32_t address[ADDR_SIZE];
-  memcpy((unsigned char*)address, (unsigned char*) root_address, ADDR_BYTES);
+  unsigned char address[ADDR_BYTES];
+  memcpy(address, root_address, ADDR_BYTES);
   const unsigned char* public_seed = get_public_seed_from_pk(pk);
+  struct hash_addr addr = init_hash_addr(address);
   int i;
   for(i = start_height; i < end_height; i++)
   {
-    if(i < 2) {
-      printf("Address:");
-      hexdump_s(address, 0, ADDR_BYTES);
-      printf("Leaf on layer %d:", i);
-      hexdump_s(root, 0, HASH_BYTES);
-    }
-    set_sphincs_subtree_layer(address, i);
+    *addr.subtree_layer = i;
     wots_verify(wots_pk, sigp, root, public_seed, address);
 
     sigp += WOTS_SIGBYTES;
@@ -137,17 +123,11 @@ static int verify_leaf(unsigned char *root, int start_height, int end_height,
     validate_authpath(root, pkhash, address, public_seed, sigp, SUBTREE_HEIGHT);
 
     // leafidx >>= SUBTREE_HEIGHT;
-    set_sphincs_subtree_node(address, get_sphincs_subtree_node(address) & ((1<<SUBTREE_HEIGHT)-1));
-    set_sphincs_subtree(address, get_sphincs_subtree(address) >> SUBTREE_HEIGHT);
+    *addr.subtree_node = *addr.subtree_node & ((1<<SUBTREE_HEIGHT)-1);
+    *addr.subtree_address = *addr.subtree_address >> SUBTREE_HEIGHT;
 
     sigp += SUBTREE_HEIGHT*HASH_BYTES;
     smlen -= SUBTREE_HEIGHT*HASH_BYTES;
-    if(i < 2) {
-      printf("Address:");
-      hexdump_s(address, 0, ADDR_BYTES);
-      printf("Root on layer %d:", i);
-      hexdump_s(root, 0, HASH_BYTES);
-    }
   }
   return 0;
 }
@@ -169,7 +149,8 @@ int crypto_sign(unsigned char *sm,
   unsigned char *pk;
   unsigned char tsk[CRYPTO_SECRETKEYBYTES];
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
-  uint32_t address[ADDR_SIZE];
+  unsigned char address[ADDR_BYTES];
+  struct hash_addr addr = init_hash_addr(address);
 
   for(i=0;i<CRYPTO_SECRETKEYBYTES;i++)
     tsk[i] = sk[i];
@@ -209,9 +190,9 @@ int crypto_sign(unsigned char *sm,
 
     // Initialization of top-subtree address
     set_type(address, SPHINCS_ADDR);
-    set_sphincs_subtree_layer(address, N_LEVELS - 1);
-    set_sphincs_subtree(address, 0);
-    set_sphincs_subtree_node(address, 0);
+    *addr.subtree_layer = N_LEVELS - 1;
+    *addr.subtree_address = 0;
+    *addr.subtree_node = 0;
 
     pk = scratch + MESSAGE_HASH_SEED_BYTES;
 
@@ -224,9 +205,9 @@ int crypto_sign(unsigned char *sm,
     msg_hash(m_h, scratch, mlen + MESSAGE_HASH_SEED_BYTES + CRYPTO_PUBLICKEYBYTES);
   }
 
-  set_sphincs_subtree_layer(address, N_LEVELS);
-  set_sphincs_subtree(address, leafidx >> SUBTREE_HEIGHT);
-  set_sphincs_subtree_node(address, leafidx & ((1<<SUBTREE_HEIGHT)-1));
+  *addr.subtree_layer = N_LEVELS;
+  *addr.subtree_address = leafidx >> SUBTREE_HEIGHT;
+  *addr.subtree_node = leafidx & ((1<<SUBTREE_HEIGHT)-1);
 
   *smlen = 0;
 
@@ -304,14 +285,6 @@ int crypto_sign_open(unsigned char *m,
 
     msg_hash(m_h, scratch, len + MESSAGE_HASH_SEED_BYTES + CRYPTO_PUBLICKEYBYTES);
 
-#if 0
-    printf("sig length: %lld\n", smlen);
-    printf("Message hash with crypto_sign_open:");
-    hexdump_s(m_h, 0, MSGHASH_BYTES);
-
-    printf("Message hash preimage with crypto_sign_open:");
-    hexdump_s(scratch, 0, len + MESSAGE_HASH_SEED_BYTES + CRYPTO_PUBLICKEYBYTES);
-#endif
   }
   sigp = &sig[0];
 
@@ -322,10 +295,11 @@ int crypto_sign_open(unsigned char *m,
   for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
     leafidx ^= (((unsigned long long)sigp[i]) << 8*i);
 
-  uint32_t address[ADDR_SIZE];
-  set_sphincs_subtree_layer(address, N_LEVELS);
-  set_sphincs_subtree(address, leafidx >> SUBTREE_HEIGHT);
-  set_sphincs_subtree_node(address, leafidx & ((1<<SUBTREE_HEIGHT)-1));
+  unsigned char address[ADDR_BYTES];
+  struct hash_addr addr = init_hash_addr(address);
+  *addr.subtree_layer = N_LEVELS;
+  *addr.subtree_address = leafidx >> SUBTREE_HEIGHT;
+  *addr.subtree_node = leafidx & ((1<<SUBTREE_HEIGHT)-1);
 
   horst_verify(root,
                sigp+(TOTALTREE_HEIGHT+7)/8,
@@ -333,9 +307,6 @@ int crypto_sign_open(unsigned char *m,
                smlen-CRYPTO_BYTES-MESSAGE_HASH_SEED_BYTES,
                address,
                m_h);
-
-  printf("Root of HORST tree in crypto_sign_open:");
-  hexdump_s(root, 0, HASH_BYTES);
 
   sigp += (TOTALTREE_HEIGHT+7)/8;
   smlen -= (TOTALTREE_HEIGHT+7)/8;
@@ -375,8 +346,6 @@ static int increment_context(unsigned char *context) {
 int crypto_context_init(unsigned char *context, unsigned long long *clen,
                         const unsigned char *sk, const unsigned char *seed)
 {
-  printf("Initializing context...\n");
-
   int i;
   *clen = 0;
 
@@ -413,20 +382,14 @@ int crypto_context_init(unsigned char *context, unsigned long long *clen,
   // ==============================================================
 
   // This address points to the subtree described by leafidx
-  uint32_t address[ADDR_SIZE];
-  set_type(address, SPHINCS_ADDR);
-  set_sphincs_subtree_layer(address, 0);
-  set_sphincs_subtree(address, leafidx>>SUBTREE_HEIGHT);
-  set_sphincs_subtree_node(address, leafidx % (1 <<SUBTREE_HEIGHT));
+  unsigned char address_bytes[ADDR_BYTES];
+  set_type(address_bytes, SPHINCS_ADDR);
+  struct hash_addr address = init_hash_addr(address_bytes);
+  *address.subtree_layer = 0;
+  *address.subtree_address = leafidx>>SUBTREE_HEIGHT;
+  *address.subtree_node = leafidx % (1 <<SUBTREE_HEIGHT);
 
-  printf("Constructing hash of lowest tree\n");
-  treehash(context, SUBTREE_HEIGHT, sk, address, get_public_seed_from_sk(sk));
   unsigned char* subtree_root = context;
-
-  printf("Address:");
-  hexdump_s(address, 0, ADDR_BYTES);
-  printf("Expected root of lowest subtree:");
-  hexdump_s(context, 0, HASH_BYTES);
 
   context += HASH_BYTES;
   *clen += HASH_BYTES;
@@ -442,11 +405,11 @@ int crypto_context_init(unsigned char *context, unsigned long long *clen,
   // ==============================================================
   // Write the upper N_LEVELS - 1 WOTS signatures to the context
   // ==============================================================
-  set_type(address, SPHINCS_ADDR);
-  set_sphincs_subtree_layer(address, 1);
-  set_sphincs_subtree(address, leafidx>>(SUBTREE_HEIGHT * 2));
-  set_sphincs_subtree_node(address, (leafidx>>SUBTREE_HEIGHT) % (1<<SUBTREE_HEIGHT));
-  sign_leaf(subtree_root, 1, N_LEVELS, context, clen, sk, address);
+  set_type(address_bytes, SPHINCS_ADDR);
+  *address.subtree_layer = 1;
+  *address.subtree_address = leafidx>>(SUBTREE_HEIGHT * 2);
+  *address.subtree_node = (leafidx>>SUBTREE_HEIGHT) % (1<<SUBTREE_HEIGHT);
+  sign_leaf(subtree_root, 1, N_LEVELS, context, clen, sk, address_bytes);
 
   return 0;
 }
@@ -456,8 +419,6 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
                      unsigned char *sig, unsigned long long *slen,
                      const unsigned char *sk)
 {
-  printf("Signing...\n");
-
   unsigned char* sigp = sig;
   *slen = 0;
 
@@ -539,14 +500,15 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   sp += MESSAGE_HASH_SEED_BYTES;
 
   const unsigned char *public_seed = get_public_seed_from_sk(sk);
-  uint32_t root_address[ADDR_SIZE];
+  unsigned char root_address_bytes[ADDR_BYTES];
   // Initialization of top-subtree address
-  set_type(root_address, SPHINCS_ADDR);
-  set_sphincs_subtree_layer(root_address, N_LEVELS - 1);
-  set_sphincs_subtree(root_address, 0);
-  set_sphincs_subtree_node(root_address, 0);
+  set_type(root_address_bytes, SPHINCS_ADDR);
+  struct hash_addr root_address = init_hash_addr(root_address_bytes);
+  *root_address.subtree_layer = N_LEVELS - 1;
+  *root_address.subtree_address = 0;
+  *root_address.subtree_node = 0;
 
-  treehash(sp, SUBTREE_HEIGHT, tsk, root_address, public_seed);
+  treehash(sp, SUBTREE_HEIGHT, tsk, root_address_bytes, public_seed);
   sp += HASH_BYTES;
   memcpy(sp, public_seed, PUBLIC_SEED_BYTES);
   sp += PUBLIC_SEED_BYTES;
@@ -555,32 +517,20 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   unsigned char m_h[MSGHASH_BYTES];
   msg_hash(m_h, scratch, mlen + MESSAGE_HASH_SEED_BYTES + CRYPTO_PUBLICKEYBYTES);
 
-#if 0
-  printf("Message hash with crypto_sign_update:");
-  hexdump_s(m_h, 0, MSGHASH_BYTES);
-
-  printf("Message hash preimage with crypto_sign_update:");
-  hexdump_s(scratch, 0, mlen + MESSAGE_HASH_SEED_BYTES + CRYPTO_PUBLICKEYBYTES);
-#endif
-
   // ==============================================================
   // Sign message with HORST
   // ==============================================================
-  uint32_t address[ADDR_SIZE];
-  set_sphincs_subtree_layer(address, N_LEVELS);
-  set_sphincs_subtree(address, leafidx >> SUBTREE_HEIGHT);
-  set_sphincs_subtree_node(address, leafidx & ((1<<SUBTREE_HEIGHT)-1));
+  unsigned char address_bytes[ADDR_BYTES];
+  struct hash_addr address = init_hash_addr(address_bytes);
+  *address.subtree_layer = N_LEVELS;
+  *address.subtree_address = leafidx >> SUBTREE_HEIGHT;
+  *address.subtree_node = leafidx & ((1<<SUBTREE_HEIGHT)-1);
 
   unsigned char seed[SEED_BYTES];
-  get_seed(seed, tsk, address);
+  get_seed(seed, tsk, address_bytes);
   unsigned char root[HASH_BYTES];
   unsigned long long horst_sigbytes;
-  horst_sign(sig, root, &horst_sigbytes, m, mlen, seed, address, m_h);
-
-#if 0
-  printf("Root of Horst tree:");
-  hexdump_s(root, 0, HASH_BYTES);
-#endif
+  horst_sign(sig, root, &horst_sigbytes, m, mlen, seed, address_bytes, m_h);
 
   sig += horst_sigbytes;
   *slen += horst_sigbytes;
@@ -588,7 +538,7 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // ==============================================================
   // Create WOTS signature for lvl 0
   // ==============================================================
-  sign_leaf(root, 0, 1, sig, slen, tsk, address);
+  sign_leaf(root, 0, 1, sig, slen, tsk, address_bytes);
 
   // ==============================================================
   // The verifier already has a copy of the rest of the signature

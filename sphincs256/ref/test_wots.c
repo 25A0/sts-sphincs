@@ -13,9 +13,9 @@ int test01()
   randombytes(seed, PUBLIC_SEED_BYTES);
   randombytes(sk, SEED_BYTES);
 
-  uint32_t addr[ADDR_SIZE];
+  unsigned char addr[ADDR_BYTES];
   int i;
-  for(i = 0; i < ADDR_SIZE; i++) {
+  for(i = 0; i < ADDR_BYTES; i++) {
     addr[i] = 0;
   }
 
@@ -64,13 +64,14 @@ int test02()
   unsigned char seed[PUBLIC_SEED_BYTES];
   randombytes(seed, PUBLIC_SEED_BYTES);
 
-  uint32_t addr[ADDR_SIZE];
+  unsigned char addr[ADDR_BYTES];
   int i;
-  for(i = 0; i < ADDR_SIZE; i++) {
+  for(i = 0; i < ADDR_BYTES; i++) {
     addr[i] = 0;
   }
   set_type(addr, WOTS_ADDR);
-  set_wots_ots_index(addr, 0);
+  struct hash_addr address = init_hash_addr(addr);
+  *address.wots_ots_index = 0;
 
   unsigned char out[HASH_BYTES];
   int err = 0;

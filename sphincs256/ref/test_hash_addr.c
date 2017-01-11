@@ -5,32 +5,35 @@
 #include "testutils.h"
 
 int test01() {
-  uint32_t address[ADDR_SIZE];
+  unsigned char address[ADDR_BYTES];
   int layer = 8;
-  set_sphincs_subtree_layer(address, layer);
-  int ret_layer = get_sphincs_subtree_layer(address);
+  struct hash_addr addr = init_hash_addr(address);
+  *addr.subtree_layer = layer;
+  int ret_layer = *addr.subtree_layer;
   if(layer != ret_layer) return 1;
   return 0;
 }
 
 int test02() {
-  uint32_t address[ADDR_SIZE];
+  unsigned char address[ADDR_BYTES];
   int layer = 8;
-  set_sphincs_subtree_layer(address, layer);
+  struct hash_addr addr = init_hash_addr(address);
+  *addr.subtree_layer = layer;
   int tree = 12345;
-  set_sphincs_subtree(address, tree);
-  int ret_layer = get_sphincs_subtree_layer(address);
-  int ret_tree = get_sphincs_subtree(address);
+  *addr.subtree_address = tree;
+  int ret_layer = *addr.subtree_layer;
+  int ret_tree = *addr.subtree_address;
   if(layer != ret_layer) return 1;
   if(tree != ret_tree) return 1;
   return 0;
 }
 
 int test03() {
-  uint32_t address[ADDR_SIZE];
+  unsigned char address[ADDR_BYTES];
+  struct hash_addr addr = init_hash_addr(address);
   int layer = 8;
-  set_sphincs_subtree_layer(address, layer);
-  int ret_layer = get_sphincs_subtree_layer(address);
+  *addr.subtree_layer = layer;
+  int ret_layer = *addr.subtree_layer;
   if(layer != ret_layer) return 1;
   return 0;
 }
