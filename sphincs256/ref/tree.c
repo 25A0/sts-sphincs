@@ -315,7 +315,7 @@ int sign_leaf(unsigned char* leaf, int start_height, int end_height,
   unsigned char seed[SEED_BYTES];
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
   struct hash_addr addr = init_hash_addr(address);
-  for(i = start_height; i < N_LEVELS; i++)
+  for(i = start_height; i < end_height; i++)
   {
     *addr.subtree_layer = i;
 
