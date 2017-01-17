@@ -17,7 +17,7 @@ int run_test(int (*test_fun)(void), char* description)
   printf("Running %s...\n", description);
   int err = (*test_fun)();
   if(err) {
-    printf("Fail in: %s\n", description);
+    printf("Fail in: %s: %d\n", description, err);
   }
   return err;
 }
