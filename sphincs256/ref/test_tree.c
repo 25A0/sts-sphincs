@@ -70,10 +70,19 @@ int test02()
 
   unsigned char* public_seed = sk + SEED_BYTES;
 
-  unsigned char address[ADDR_BYTES];
-  int i;
-  zerobytes(address, ADDR_BYTES);
   int layers = 4;
+
+  unsigned char address[ADDR_BYTES];
+  zerobytes(address, ADDR_BYTES);
+  struct hash_addr addr = init_hash_addr(address);
+  // Configure the adress to non-zero values
+  *addr.subtree_address = randomint(0, 1 << 4);
+  *addr.subtree_node = randomint(0, 1 << SUBTREE_HEIGHT);
+
+  // create a copy of that address
+  unsigned char address_split[ADDR_BYTES];
+  memcpy(address_split, address, ADDR_BYTES);
+
   unsigned char signature_single[layers * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES)];
   zerobytes(signature_single, layers * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES));
   unsigned long long siglen_single = 0;
@@ -86,10 +95,6 @@ int test02()
   sign_leaf(leaf_single, 0, layers,
             signature_single, &siglen_single,
             sk, address);
-
-  // create a second address
-  unsigned char address_split[ADDR_BYTES];
-  zerobytes(address_split, ADDR_BYTES);
 
   unsigned char signature_split[layers * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES)];
   zerobytes(signature_split, layers * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES));
@@ -130,6 +135,7 @@ int test03()
     address[i] = 0;
   }
 
+
   int layers = 4;
   unsigned char signature[layers * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES)];
   unsigned long long siglen = 0;
@@ -160,8 +166,8 @@ int main(int argc, char const *argv[])
   int err = 0;
 
   err |= run_test(&test01, "Test authentication path");
-  err |= run_test(&test02, "Test signing parts of the tree structure");
-  err |= run_test(&test03, "Test signing and verifying parts of the tree structure");
+  err |= run_test(&test02, "Testing that splitting up the signature makes no difference");
+  err |= run_test(&test03, "Testing that a partial signature can be verified");
 
   if(err)
   {
