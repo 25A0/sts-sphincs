@@ -25,10 +25,12 @@ int run_test(int (*test_fun)(void), char* description)
 void hexdump(unsigned char *data, int start, int len)
 {
   int i;
-  for(i = 0; i < len; i++) {
-    if(i % 32 == 0) printf("\n%04d: ", i);
-    printf("%02x", data[start + i]);
+  for(i = start; i < start + len; i++) {
+    if(i % 32 == 0) printf("%04d: ", i);
+    printf("%02x", data[i]);
     if(i % 2) printf(" ");
+    if((i + 1) % 32 == 0) printf("\n");
   }
-  printf("\n");
+  // Make sure to print a newline unless we just printed one
+  if(i % 32 != 0) printf("\n");
 }
