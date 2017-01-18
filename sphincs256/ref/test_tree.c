@@ -72,52 +72,46 @@ int test02()
 
   unsigned char address[ADDR_BYTES];
   int i;
-  for(i = 0; i < ADDR_BYTES; i++) {
-    address[i] = 0;
-  }
-
+  zerobytes(address, ADDR_BYTES);
   int layers = 4;
   unsigned char signature_single[layers * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES)];
+  zerobytes(signature_single, layers * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES));
   unsigned long long siglen_single = 0;
 
   unsigned char leaf_single[HASH_BYTES];
   randombytes(leaf_single, HASH_BYTES);
+  unsigned char leaf_split[HASH_BYTES];
+  memcpy(leaf_split, leaf_single, HASH_BYTES);
 
   sign_leaf(leaf_single, 0, layers,
             signature_single, &siglen_single,
             sk, address);
 
-  unsigned char leaf_split[HASH_BYTES];
-  randombytes(leaf_split, HASH_BYTES);
-
-  // reset address
-  for(i = 0; i < ADDR_BYTES; i++) {
-    address[i] = 0;
-  }
+  // create a second address
+  unsigned char address_split[ADDR_BYTES];
+  zerobytes(address_split, ADDR_BYTES);
 
   unsigned char signature_split[layers * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES)];
+  zerobytes(signature_split, layers * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES));
   unsigned long long siglen_split = 0;
 
   sign_leaf(leaf_split, 0, layers - 2,
             signature_split, &siglen_split,
-            sk, address);
+            sk, address_split);
 
   // The rest of the signature should start where the previous ended.
   unsigned char* second_half = signature_split + siglen_split;
   sign_leaf(leaf_split, layers - 2, layers,
             second_half, &siglen_split,
-            sk, address);
+            sk, address_split);
 
-  if(siglen_split != siglen_single) {
-    return -1;
-  } else if(compare(leaf_single, leaf_split, HASH_BYTES)) {
-    return -2;
-  } else if(compare(signature_single, signature_split, siglen_single)) {
-    hexdump_s(signature_single, 0, siglen_single);
-    hexdump_s(signature_split, 0, siglen_split);
-    return -3;
-  }
-  return 0;
+  int err = 0;
+  err |= (siglen_split != siglen_single);
+  err |= compare(leaf_single, leaf_split, HASH_BYTES);
+  err |= compare(address, address_split, ADDR_BYTES);
+  err |= compare(signature_single, signature_split, siglen_single);
+
+  return err;
 }
 
 int test03()

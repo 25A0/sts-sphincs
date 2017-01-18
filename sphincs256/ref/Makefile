@@ -12,10 +12,10 @@ CFLAGS=-g -Wall
 libsphincs.a: sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o blake512.o permute.o prg.o chacha12.o hash_address.o tree.o
 	$(AR) -ar cr $@ $^
 
-test_hash_addr.o: testutils.o test_hash_addr.c hash_address.o
+test_hash_addr.o: testutils.o test_hash_addr.c hash_address.o randombytes.o
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
-test_chacha12.o: testutils.o test_chacha12.c chacha12.o
+test_chacha12.o: testutils.o test_chacha12.c chacha12.o randombytes.o
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
 test_wots.o: testutils.o test_wots.c libsphincs.a
