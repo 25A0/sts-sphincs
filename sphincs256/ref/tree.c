@@ -305,13 +305,11 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
 int sign_leaf(unsigned char* leaf, int start_height, int end_height,
               unsigned char *sm, unsigned long long *smlen,
               const unsigned char *sk,
-              unsigned char *leaf_address)
+              unsigned char *address)
 {
   int i;
   unsigned char root[HASH_BYTES];
   memcpy(root, leaf, HASH_BYTES);
-  unsigned char address[ADDR_BYTES];
-  memcpy(address, leaf_address, ADDR_BYTES);
   unsigned char seed[SEED_BYTES];
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
   struct hash_addr addr = init_hash_addr(address);
@@ -338,12 +336,10 @@ int sign_leaf(unsigned char* leaf, int start_height, int end_height,
 int verify_leaf(unsigned char *root, int start_height, int end_height,
                 unsigned char *sigp, unsigned long long smlen,
                 const unsigned char *pk,
-                unsigned char *root_address)
+                unsigned char *address)
 {
   unsigned char wots_pk[WOTS_L*HASH_BYTES];
   unsigned char pkhash[HASH_BYTES];
-  unsigned char address[ADDR_BYTES];
-  memcpy(address, root_address, ADDR_BYTES);
   const unsigned char* public_seed = get_public_seed_from_pk(pk);
   struct hash_addr addr = init_hash_addr(address);
   int i;
