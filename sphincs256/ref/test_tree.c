@@ -92,7 +92,7 @@ int test02()
   unsigned char leaf_split[HASH_BYTES];
   memcpy(leaf_split, leaf_single, HASH_BYTES);
 
-  sign_leaf(leaf_single, 0, layers,
+  sign_leaf(leaf_single, layers,
             signature_single, &siglen_single,
             sk, address);
 
@@ -100,13 +100,13 @@ int test02()
   zerobytes(signature_split, layers * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES));
   unsigned long long siglen_split = 0;
 
-  sign_leaf(leaf_split, 0, layers - 2,
+  sign_leaf(leaf_split, 2,
             signature_split, &siglen_split,
             sk, address_split);
 
   // The rest of the signature should start where the previous ended.
   unsigned char* second_half = signature_split + siglen_split;
-  sign_leaf(leaf_split, layers - 2, layers,
+  sign_leaf(leaf_split, 2,
             second_half, &siglen_split,
             sk, address_split);
 
@@ -145,7 +145,7 @@ int test03()
   unsigned char root[HASH_BYTES];
   memcpy(root, leaf, HASH_BYTES);
 
-  sign_leaf(root, 0, layers,
+  sign_leaf(root, layers,
             signature, &siglen,
             sk, address);
 
@@ -154,7 +154,7 @@ int test03()
     address[i] = 0;
   }
 
-  verify_leaf(leaf, 0, layers,
+  verify_leaf(leaf, layers,
               signature, siglen,
               pk, address);
 

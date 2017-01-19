@@ -162,7 +162,8 @@ int crypto_sign(unsigned char *sm,
   sm += horst_sigbytes;
   *smlen += horst_sigbytes;
 
-  sign_leaf(root, 0, N_LEVELS, sm, smlen, tsk, address);
+  *addr.subtree_layer = 0;
+  sign_leaf(root, N_LEVELS, sm, smlen, tsk, address);
 
   zerobytes(tsk, CRYPTO_SECRETKEYBYTES);
 
@@ -247,7 +248,8 @@ int crypto_sign_open(unsigned char *m,
   sigp += HORST_SIGBYTES;
   smlen -= HORST_SIGBYTES;
 
-  verify_leaf(root, 0, N_LEVELS, sigp, smlen, pk, address);
+  *addr.subtree_layer = 0;
+  verify_leaf(root, N_LEVELS, sigp, smlen, pk, address);
 
   for(i=0;i<HASH_BYTES;i++)
     if(root[i] != tpk[i])
@@ -471,7 +473,8 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // ==============================================================
   // Create WOTS signature for lvl 0
   // ==============================================================
-  sign_leaf(root, 0, 1, sig, slen, tsk, address_bytes);
+  *address.subtree_layer = 0;
+  sign_leaf(root, 1, sig, slen, tsk, address_bytes);
 
   // ==============================================================
   // The verifier already has a copy of the rest of the signature

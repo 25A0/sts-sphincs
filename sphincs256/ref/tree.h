@@ -42,12 +42,12 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
 /* Signs the first HASH_BYTES bytes of leaf with the given secret key sk.
  * The start_height and end_height determines how many layers will be signed.
  */
-int sign_leaf(unsigned char* leaf, int start_height, int end_height,
+int sign_leaf(unsigned char* leaf, int num_levels,
               unsigned char *sm, unsigned long long *smlen,
               const unsigned char *sk,
               unsigned char *leaf_address);
 
-int verify_leaf(unsigned char *root, int start_height, int end_height,
+int verify_leaf(unsigned char *root, int num_levels,
                 unsigned char *sigp, unsigned long long smlen,
                 const unsigned char *pk,
                 unsigned char *root_address);

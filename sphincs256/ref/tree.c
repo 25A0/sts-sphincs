@@ -302,21 +302,26 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
   *addr.subtree_node = idx;
 }
 
-int sign_leaf(unsigned char* leaf, int start_height, int end_height,
+/* Construct a signature for the given leaf, starting on the layer that is set
+ * in the passed address, and ending num_levels higher. The signature is stored
+ * in sm, the total length is stored in smlen. The secret key sk is used to
+ * sign the leaf.  The given address defines the position of the leaf.  When
+ * this function returns, leaf will contain the hash of the tree, and address
+ * will point to the root of the tree
+ */
+int sign_leaf(unsigned char* leaf, int num_levels,
               unsigned char *sm, unsigned long long *smlen,
               const unsigned char *sk,
               unsigned char *address)
 {
-  int i;
   unsigned char root[HASH_BYTES];
   memcpy(root, leaf, HASH_BYTES);
   unsigned char seed[SEED_BYTES];
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
   struct hash_addr addr = init_hash_addr(address);
-  for(i = start_height; i < end_height; i++)
+  int last_level = *addr.subtree_layer + num_levels;
+  for(; *addr.subtree_layer < last_level; (*addr.subtree_layer)++)
   {
-    *addr.subtree_layer = i;
-
     get_seed(seed, sk, address); //XXX: Don't use the same address as for horst_sign here!
     wots_sign(sm, root, seed, public_seed, address);
     sm += WOTS_SIGBYTES;
@@ -333,7 +338,19 @@ int sign_leaf(unsigned char* leaf, int start_height, int end_height,
   return 0;
 }
 
-int verify_leaf(unsigned char *root, int start_height, int end_height,
+/* Reconstructs the tree hash from the given signature.  The signature should
+ * be stored in sign. smlen should initially contain the number of bytes that
+ * can be read from sign. When the function returns, smlen will contain the
+ * remaining bytes that were not consumed by this function. address initially
+ * defines the position of the leaf, and contains the position of the generated
+ * tree root when the function returns. num_levels defines for how many layers
+ * the signature is verified, starting from the layer that is defined in address.
+ *
+ * The return value only indicates whether there were any errors -- compare the
+ * content of leaf with the expected treehash once this functino returns to
+ * verify the signature.
+ */
+int verify_leaf(unsigned char *leaf, int num_levels,
                 unsigned char *sigp, unsigned long long smlen,
                 const unsigned char *pk,
                 unsigned char *address)
@@ -342,18 +359,17 @@ int verify_leaf(unsigned char *root, int start_height, int end_height,
   unsigned char pkhash[HASH_BYTES];
   const unsigned char* public_seed = get_public_seed_from_pk(pk);
   struct hash_addr addr = init_hash_addr(address);
-  int i;
-  for(i = start_height; i < end_height; i++)
+  int last_level = *addr.subtree_layer + num_levels;
+  for(; *addr.subtree_layer < last_level; (*addr.subtree_layer)++)
   {
-    *addr.subtree_layer = i;
-    wots_verify(wots_pk, sigp, root, public_seed, address);
+    wots_verify(wots_pk, sigp, leaf, public_seed, address);
 
     sigp += WOTS_SIGBYTES;
     smlen -= WOTS_SIGBYTES;
 
     l_tree(pkhash, wots_pk, address, public_seed);
     // validate_authpath(root, pkhash, leafidx & 0x1f, sigp, tpk, SUBTREE_HEIGHT);
-    validate_authpath(root, pkhash, address, public_seed, sigp, SUBTREE_HEIGHT);
+    validate_authpath(leaf, pkhash, address, public_seed, sigp, SUBTREE_HEIGHT);
 
     // leafidx >>= SUBTREE_HEIGHT;
     *addr.subtree_node = *addr.subtree_node & ((1<<SUBTREE_HEIGHT)-1);
