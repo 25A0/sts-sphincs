@@ -161,6 +161,38 @@ int test03()
   return compare(root, leaf, HASH_BYTES);
 }
 
+int test04()
+{
+  // Generate keypair
+  unsigned char pk[CRYPTO_PUBLICKEYBYTES];
+  unsigned char sk[CRYPTO_SECRETKEYBYTES];
+
+  crypto_sign_keypair(pk, sk);
+
+  unsigned char* public_seed = sk + SEED_BYTES;
+
+  unsigned char address[ADDR_BYTES];
+  zerobytes(address, ADDR_BYTES);
+  struct hash_addr addr = init_hash_addr(address);
+  // Initialize address to some non-zero values
+  *addr.subtree_address = 4;
+
+  unsigned char leaf[HASH_BYTES];
+  randombytes(leaf, HASH_BYTES);
+  unsigned char expected_root[HASH_BYTES];
+
+  // Calculate expected root
+  treehash(expected_root, SUBTREE_HEIGHT, sk, address, public_seed);
+
+  // Calculate the auth path. We are not actually interested in the auth path
+  // itself, but rather in the hash that will be stored in leaf when the function
+  // returns. This should be the same hash that was generated with treehash.
+  unsigned char authpath[SUBTREE_HEIGHT * HASH_BYTES];
+  compute_authpath_wots(leaf, authpath, address, sk, SUBTREE_HEIGHT, public_seed);
+
+  return compare(expected_root, leaf, HASH_BYTES);
+}
+
 int main(int argc, char const *argv[])
 {
   int err = 0;
@@ -168,6 +200,7 @@ int main(int argc, char const *argv[])
   err |= run_test(&test01, "Test authentication path");
   err |= run_test(&test02, "Testing that splitting up the signature makes no difference");
   err |= run_test(&test03, "Testing that a partial signature can be verified");
+  err |= run_test(&test04, "Testing that tree_hash results in the same tree hash as compute_authpath_wots");
 
   if(err)
   {
