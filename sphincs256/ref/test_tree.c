@@ -175,11 +175,17 @@ int test04()
   zerobytes(address, ADDR_BYTES);
   struct hash_addr addr = init_hash_addr(address);
   // Initialize address to some non-zero values
-  *addr.subtree_address = 4;
+  int subtree_address = randomint(0, 1 << N_LEVELS);
+  int subtree_node = randomint(0, 1 << SUBTREE_HEIGHT);
+  *addr.subtree_address = subtree_address;
+  *addr.subtree_node = subtree_node;
 
   unsigned char leaf[HASH_BYTES];
   randombytes(leaf, HASH_BYTES);
   unsigned char expected_root[HASH_BYTES];
+
+  // Set the address type to something different
+  set_type(address, WOTS_ADDR);
 
   // Calculate expected root
   treehash(expected_root, SUBTREE_HEIGHT, sk, address, public_seed);
@@ -188,6 +194,9 @@ int test04()
   // itself, but rather in the hash that will be stored in leaf when the function
   // returns. This should be the same hash that was generated with treehash.
   unsigned char authpath[SUBTREE_HEIGHT * HASH_BYTES];
+  set_type(address, HORST_ADDR);
+  *addr.subtree_address = subtree_address;
+  *addr.subtree_node = subtree_node;
   compute_authpath_wots(leaf, authpath, address, sk, SUBTREE_HEIGHT, public_seed);
 
   return compare(expected_root, leaf, HASH_BYTES);
