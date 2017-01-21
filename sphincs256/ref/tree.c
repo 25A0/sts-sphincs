@@ -136,7 +136,7 @@ void treehash(unsigned char *node,
   memcpy(address, subtree_address, ADDR_BYTES);
 
   struct hash_addr addr = init_hash_addr(address);
-  uint32_t subtree_node = *addr.subtree_node;
+  uint32_t subtree_node = 0;
   uint32_t lastnode = subtree_node + (1<<height);
 
   for( ; subtree_node < lastnode; subtree_node++)
