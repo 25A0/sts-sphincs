@@ -325,6 +325,8 @@ int crypto_context_init(unsigned char *context, unsigned long long *clen,
   *address.subtree_node = leafidx % (1 <<SUBTREE_HEIGHT);
 
   unsigned char* subtree_root = context;
+  unsigned char* public_seed = get_public_seed_from_sk(sk);
+  treehash(subtree_root, SUBTREE_HEIGHT, sk, address_bytes, public_seed);
 
   context += HASH_BYTES;
   *clen += HASH_BYTES;
