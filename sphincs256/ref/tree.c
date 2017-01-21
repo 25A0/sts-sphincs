@@ -46,20 +46,21 @@ void get_seed(unsigned char seed[SEED_BYTES],
   // the SPHINCS part of the hash_address is used. I should check if instead we
   // can use the entire address, or at least use a better method to determine
   // how much of the address should be used.
-  unsigned char buffer[SEED_BYTES+16];
+  unsigned int SPHINCS_BYTES = 14;
+  unsigned char buffer[SEED_BYTES+SPHINCS_BYTES];
   int i;
 
   for(i=0;i<SEED_BYTES;i++)
     buffer[i] = sk[i];
 
-  for(i = 0; i < 16; i++) {
+  for(i = 0; i < SPHINCS_BYTES; i++) {
     buffer[SEED_BYTES + i] = ((unsigned char*) address)[i];
   }
 
 #if SEED_BYTES != HASH_BYTES
 #error "Need to have SEED_BYTES == HASH_BYTES"
 #endif
-  varlen_hash(seed,buffer,SEED_BYTES+16);
+  varlen_hash(seed,buffer,SEED_BYTES+SPHINCS_BYTES);
 }
 
 
