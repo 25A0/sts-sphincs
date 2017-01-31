@@ -233,7 +233,7 @@ int crypto_sign_open(unsigned char *m,
   struct hash_addr addr = init_hash_addr(address);
   *addr.subtree_layer = N_LEVELS;
   *addr.subtree_address = leafidx >> SUBTREE_HEIGHT;
-  *addr.subtree_node = leafidx & ((1<<SUBTREE_HEIGHT)-1);
+  *addr.subtree_node = leafidx % (1<<SUBTREE_HEIGHT);
 
   horst_verify(root,
                sigp+(TOTALTREE_HEIGHT+7)/8,
@@ -275,6 +275,30 @@ fail:
  * the next message
  */
 static int increment_context(unsigned char *context) {
+  // Increment the leafidx that indicates which leaf should be used
+  // to sign the message
+  unsigned long long leafidx = 0;
+  int i;
+  for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
+    leafidx ^= (((unsigned long long)context[i]) << 8*i);
+
+  // Check that this leafidx can still be incremented.
+  // This is the case as long as the current leafidx does not point
+  // to the last leaf of its subtree.
+  unsigned long long first_leaf = leafidx - (leafidx % (1<<SUBTREE_HEIGHT));
+  if(leafidx  - first_leaf == (1<<SUBTREE_HEIGHT) - 1) return -42;
+
+  // We also need to make sure that we never accidentially use a leaf that
+  // is not even part of the tree.
+  if(leafidx > ((unsigned long long)1 << TOTALTREE_HEIGHT) - 1) return -13;
+
+  // Otherwise we can safely increment the leafidx.
+  leafidx += 1;
+
+  // Write new leafidx to context
+  for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
+    context[i] = (leafidx >> 8*i) & 0xff;
+
   return 0;
 }
 
@@ -409,16 +433,17 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   for(i=0;i<CRYPTO_SECRETKEYBYTES;i++)
     tsk[i] = sk[i];
 
-  // ==============================================================
-  // Update leafidx. Return if we're out of leaves
-  // ==============================================================
-  int res = increment_context(context);
-  if(res != 0) return res;
-
   // Read leafidx from updated context
   unsigned long long leafidx = 0;
   for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
     leafidx ^= (((unsigned long long)context[i]) << 8*i);
+
+  // ==============================================================
+  // Update leafidx. Return if we're out of leaves
+  // ==============================================================
+
+  int res = increment_context(context);
+  if(res != 0) return res;
 
   // Write used leafidx to signature
   for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
