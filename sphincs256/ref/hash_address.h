@@ -78,6 +78,12 @@ struct hash_addr init_hash_addr(unsigned char *bytes);
 uint32_t node_index(uint32_t tree_height, uint32_t layer, uint32_t node);
 
 /*
+ * Change the given address so that it points to the parent tree of the
+ * tree that it currently points at.
+ */
+void parent(uint32_t tree_height, struct hash_addr address);
+
+/*
  * Sets the type of address, and clears the type-specific address field(s).
  */
 void set_type(unsigned char addr[ADDR_BYTES], enum addr_type type);

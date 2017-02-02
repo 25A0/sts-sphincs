@@ -15,6 +15,12 @@ uint32_t node_index(uint32_t tree_height, uint32_t layer, uint32_t node)
     + node; // Add the index of the node in that layer
 }
 
+void parent(uint32_t tree_height, struct hash_addr addr) {
+  *addr.subtree_node = *addr.subtree_address & ((1 << tree_height) - 1);
+  *addr.subtree_address = *addr.subtree_address >> tree_height;
+  *addr.subtree_layer += 1;
+}
+
 void set_type(unsigned char addr[ADDR_BYTES], enum addr_type type)
 {
   addr[0] = (unsigned char) type;
