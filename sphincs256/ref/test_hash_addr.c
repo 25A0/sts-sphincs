@@ -52,7 +52,7 @@ int test04() {
   res |= !(*addr.subtree_address == 1);
   res |= !(*addr.subtree_node == 3);
 
-  return 0;
+  return res;
 }
 
 int main(int argc, char const *argv[])
