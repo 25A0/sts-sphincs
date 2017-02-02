@@ -321,7 +321,7 @@ int sign_leaf(unsigned char* leaf, int num_levels,
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
   struct hash_addr addr = init_hash_addr(address);
   int last_level = *addr.subtree_layer + num_levels;
-  for(; *addr.subtree_layer < last_level; (*addr.subtree_layer)++)
+  for(; *addr.subtree_layer < last_level;)
   {
     get_seed(seed, sk, address); //XXX: Don't use the same address as for horst_sign here!
     wots_sign(sm, root, seed, public_seed, address);
@@ -332,8 +332,7 @@ int sign_leaf(unsigned char* leaf, int num_levels,
     sm += SUBTREE_HEIGHT*HASH_BYTES;
     *smlen += SUBTREE_HEIGHT*HASH_BYTES;
 
-    *addr.subtree_node = *addr.subtree_address & ((1<<SUBTREE_HEIGHT)-1);
-    *addr.subtree_address = *addr.subtree_address >> SUBTREE_HEIGHT;
+    parent(SUBTREE_HEIGHT, addr);
   }
   memcpy(leaf, root, HASH_BYTES);
   return 0;
@@ -361,7 +360,7 @@ int verify_leaf(unsigned char *leaf, int num_levels,
   const unsigned char* public_seed = get_public_seed_from_pk(pk);
   struct hash_addr addr = init_hash_addr(address);
   int last_level = *addr.subtree_layer + num_levels;
-  for(; *addr.subtree_layer < last_level; (*addr.subtree_layer)++)
+  for(; *addr.subtree_layer < last_level;)
   {
     wots_verify(wots_pk, sigp, leaf, public_seed, address);
 
@@ -372,9 +371,7 @@ int verify_leaf(unsigned char *leaf, int num_levels,
     // validate_authpath(root, pkhash, leafidx & 0x1f, sigp, tpk, SUBTREE_HEIGHT);
     validate_authpath(leaf, pkhash, address, public_seed, sigp, SUBTREE_HEIGHT);
 
-    // leafidx >>= SUBTREE_HEIGHT;
-    *addr.subtree_node = *addr.subtree_address & ((1<<SUBTREE_HEIGHT)-1);
-    *addr.subtree_address = *addr.subtree_address >> SUBTREE_HEIGHT;
+    parent(SUBTREE_HEIGHT, addr);
 
     sigp += SUBTREE_HEIGHT*HASH_BYTES;
     smlen -= SUBTREE_HEIGHT*HASH_BYTES;
