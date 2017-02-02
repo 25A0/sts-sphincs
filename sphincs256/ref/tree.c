@@ -332,7 +332,7 @@ int sign_leaf(unsigned char* leaf, int num_levels,
     sm += SUBTREE_HEIGHT*HASH_BYTES;
     *smlen += SUBTREE_HEIGHT*HASH_BYTES;
 
-    *addr.subtree_node = *addr.subtree_node & ((1<<SUBTREE_HEIGHT)-1);
+    *addr.subtree_node = *addr.subtree_address & ((1<<SUBTREE_HEIGHT)-1);
     *addr.subtree_address = *addr.subtree_address >> SUBTREE_HEIGHT;
   }
   memcpy(leaf, root, HASH_BYTES);
@@ -373,7 +373,7 @@ int verify_leaf(unsigned char *leaf, int num_levels,
     validate_authpath(leaf, pkhash, address, public_seed, sigp, SUBTREE_HEIGHT);
 
     // leafidx >>= SUBTREE_HEIGHT;
-    *addr.subtree_node = *addr.subtree_node & ((1<<SUBTREE_HEIGHT)-1);
+    *addr.subtree_node = *addr.subtree_address & ((1<<SUBTREE_HEIGHT)-1);
     *addr.subtree_address = *addr.subtree_address >> SUBTREE_HEIGHT;
 
     sigp += SUBTREE_HEIGHT*HASH_BYTES;

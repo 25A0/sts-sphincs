@@ -368,7 +368,7 @@ int crypto_context_init(unsigned char *context, unsigned long long *clen,
   // ==============================================================
   set_type(address_bytes, SPHINCS_ADDR);
   *address.subtree_layer = 1;
-  *address.subtree_node = *address.subtree_node >> SUBTREE_HEIGHT;
+  *address.subtree_node = *address.subtree_address & ((1<<SUBTREE_HEIGHT) - 1);
   *address.subtree_address = *address.subtree_address >> SUBTREE_HEIGHT;
   sign_leaf(subtree_root, N_LEVELS - 1, context, clen, sk, address_bytes);
 
