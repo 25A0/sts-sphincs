@@ -202,6 +202,58 @@ int test04()
   return compare(expected_root, leaf, HASH_BYTES);
 }
 
+int test05()
+{
+  // Generate keypair
+  unsigned char pk[CRYPTO_PUBLICKEYBYTES];
+  unsigned char sk[CRYPTO_SECRETKEYBYTES];
+
+  crypto_sign_keypair(pk, sk);
+
+  unsigned char* public_seed = sk + SEED_BYTES;
+
+  unsigned char address[ADDR_BYTES];
+  zerobytes(address, ADDR_BYTES);
+  struct hash_addr addr = init_hash_addr(address);
+  // Initialize address to some non-zero values
+  int subtree_address = randomint(0, 1 << N_LEVELS);
+  int subtree_node = randomint(0, 1 << SUBTREE_HEIGHT);
+  *addr.subtree_address = subtree_address;
+  *addr.subtree_node = subtree_node;
+
+  unsigned char leaf[HASH_BYTES];
+  randombytes(leaf, HASH_BYTES);
+
+  // Set the address type to something different
+  set_type(address, WOTS_ADDR);
+
+  // Calculate tree hash
+  unsigned char root1[HASH_BYTES];
+  treehash(root1, SUBTREE_HEIGHT, sk, address, public_seed);
+
+  // Change subtree_node
+  unsigned char root2[HASH_BYTES];
+  while(subtree_node == *addr.subtree_node) {
+    subtree_node = randomint(0, 1 << SUBTREE_HEIGHT);
+  }
+  *addr.subtree_node = subtree_node;
+  treehash(root2, SUBTREE_HEIGHT, sk, address, public_seed);
+
+  // Change subtree_address. This should change the hash.
+  unsigned char root3[HASH_BYTES];
+  while(subtree_address == *addr.subtree_address) {
+    subtree_address = randomint(0, 1 << N_LEVELS);
+  }
+  *addr.subtree_address = subtree_address;
+  treehash(root3, SUBTREE_HEIGHT, sk, address, public_seed);
+
+  int res = 0;
+  res |= compare(root1, root2, HASH_BYTES);
+  res |= ! compare(root1, root3, HASH_BYTES);
+
+  return res;
+}
+
 int main(int argc, char const *argv[])
 {
   int err = 0;
@@ -210,6 +262,7 @@ int main(int argc, char const *argv[])
   err |= run_test(&test02, "Testing that splitting up the signature makes no difference");
   err |= run_test(&test03, "Testing that a partial signature can be verified");
   err |= run_test(&test04, "Testing that tree_hash results in the same tree hash as compute_authpath_wots");
+  err |= run_test(&test05, "Testing that treehash ignores subtree_node");
 
   if(err)
   {
