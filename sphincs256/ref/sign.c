@@ -31,6 +31,9 @@ struct batch_context{
   // The message hash
   unsigned char* msg_hash_bytes;
 
+  // Seed that was used to initialize the context
+  unsigned char* seed;
+
   // The N_LEVELS-1 WOTS signatures that sign level_0_hash under the
   // key pair that was used to generate this context
   unsigned char* signatures;
@@ -48,6 +51,9 @@ static const struct batch_context init_batch_context(unsigned char* bytes) {
 
   context.msg_hash_bytes = bytes + offset;
   offset += MESSAGE_HASH_SEED_BYTES;
+
+  context.seed = bytes + offset;
+  offset += SEED_BYTES;
 
   context.signatures = bytes + offset;
 
@@ -378,6 +384,12 @@ int crypto_context_init(unsigned char *context_bytes, unsigned long long *clen,
   // ==============================================================
   memcpy(context.msg_hash_bytes, &rnd[2], MESSAGE_HASH_SEED_BYTES);
   *clen += MESSAGE_HASH_SEED_BYTES;
+
+  // ==============================================================
+  // Copy the used seed to the context
+  // ==============================================================
+  memcpy(context.seed, seed, SEED_BYTES);
+  *clen += SEED_BYTES;
 
   // ==============================================================
   // Write the upper N_LEVELS - 1 WOTS signatures to the context
