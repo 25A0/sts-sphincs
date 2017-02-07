@@ -92,7 +92,6 @@ int test03()
 
   unsigned long long mlen = 32;
   unsigned char message[mlen + CRYPTO_BYTES];
-  unsigned int i = 0;
   randombytes(message, mlen);
 
   crypto_sign_keypair(pk, sk);

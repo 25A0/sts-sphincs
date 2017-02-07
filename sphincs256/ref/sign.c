@@ -54,17 +54,6 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
   return 0;
 }
 
-static void hexdump_s(unsigned char *data, int start, int len)
-{
-  int i;
-  for(i = 0; i < len; i++) {
-    if(i % 32 == 0) printf("\n%04d: ", i);
-    printf("%02x", data[start + i]);
-    if(i % 2) printf(" ");
-  }
-  printf("\n");
-}
-
 int crypto_sign(unsigned char *sm,
                 unsigned long long *smlen,
                 const unsigned char *m,
