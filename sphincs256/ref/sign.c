@@ -411,14 +411,6 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
   struct batch_context context = init_batch_context(context_bytes);
 
   // ==============================================================
-  // Copy the message hash seed to the beginning of the signature
-  // ==============================================================
-  memcpy(sigp, context.msg_hash_bytes, MESSAGE_HASH_SEED_BYTES);
-
-  sigp += MESSAGE_HASH_SEED_BYTES;
-  *slen += MESSAGE_HASH_SEED_BYTES;
-
-  // ==============================================================
   // Do whatever we do when we update a signature
   // ==============================================================
   unsigned long long uslen = 0;
@@ -464,6 +456,33 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // Read leafidx from updated context
   unsigned long long leafidx = *context.next_leafidx;
 
+  // ==========================================================================
+  // Calculate and copy the message hash seed to the beginning of the signature
+  // ==========================================================================
+
+  // The message hash seed depends on:
+  //  - the seed that was used when the given context was initialized,
+  //  - the seed in the secret key, and
+  //  - the used leaf index
+  unsigned char msg_hash_seed_input[SK_RAND_SEED_BYTES + SEED_BYTES +
+                                    (TOTALTREE_HEIGHT+7)/8];
+  for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
+    msg_hash_seed_input[i] = (leafidx >> 8*i) & 0xff;
+  memcpy(msg_hash_seed_input + (TOTALTREE_HEIGHT+7)/8,
+         sk + CRYPTO_SECRETKEYBYTES - SK_RAND_SEED_BYTES,
+         SK_RAND_SEED_BYTES);
+  memcpy(msg_hash_seed_input + (TOTALTREE_HEIGHT+7)/8 + SK_RAND_SEED_BYTES,
+         context.seed, SEED_BYTES);
+  unsigned long long rnd[8];
+  crypto_hash_blake512((unsigned char*) rnd, msg_hash_seed_input,
+                       SK_RAND_SEED_BYTES + SEED_BYTES +
+                       (TOTALTREE_HEIGHT+7)/8);
+  unsigned char* msg_hash_seed = (unsigned char*) &rnd[2];
+  memcpy(sig, msg_hash_seed, MESSAGE_HASH_SEED_BYTES);
+
+  sig += MESSAGE_HASH_SEED_BYTES;
+  *slen += MESSAGE_HASH_SEED_BYTES;
+
   // ==============================================================
   // Update leafidx. Return if we're out of leaves
   // ==============================================================
@@ -483,7 +502,7 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // ==============================================================
   unsigned char scratch[mlen + MESSAGE_HASH_SEED_BYTES + CRYPTO_PUBLICKEYBYTES];
   unsigned char* sp = scratch;
-  memcpy(sp, context.msg_hash_bytes, MESSAGE_HASH_SEED_BYTES);
+  memcpy(sp, msg_hash_seed, MESSAGE_HASH_SEED_BYTES);
   sp += MESSAGE_HASH_SEED_BYTES;
 
   const unsigned char *public_seed = get_public_seed_from_sk(sk);
