@@ -48,7 +48,6 @@ int test01() {
     sig,
     pk,
     &sigbytes, 
-    message, mlen, 
     seed, 
     addr,
     m_hash
@@ -58,8 +57,6 @@ int test01() {
   int res = horst_verify(
     gpk,
     sig,
-    message,
-    mlen,
     addr,
     m_hash
   );
@@ -112,7 +109,6 @@ int test02() {
     sig,
     pk,
     &sigbytes, 
-    message, mlen, 
     seed, 
     addr,
     m_hash
@@ -122,8 +118,6 @@ int test02() {
   int res = horst_verify(
     gpk,
     sig,
-    message,
-    mlen,
     addr,
     m_hash
   );

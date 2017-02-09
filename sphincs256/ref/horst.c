@@ -23,7 +23,6 @@ static void expand_seed(unsigned char outseeds[HORST_T*HORST_SKBYTES], const uns
 }
 
 int horst_sign(unsigned char *sig, unsigned char pk[HASH_BYTES], unsigned long long *sigbytes, 
-               const unsigned char *m, unsigned long long mlen, 
                const unsigned char seed[SEED_BYTES], 
                unsigned char addr[ADDR_BYTES],
                const unsigned char m_hash[MSGHASH_BYTES])
@@ -103,8 +102,6 @@ int horst_sign(unsigned char *sig, unsigned char pk[HASH_BYTES], unsigned long l
 
 int horst_verify(unsigned char *pk,
                  const unsigned char *sig,
-                 const unsigned char *m,
-                 unsigned long long mlen,
                  unsigned char addr[ADDR_BYTES],
                  const unsigned char m_hash[MSGHASH_BYTES])
 {

@@ -179,7 +179,7 @@ int crypto_sign(unsigned char *sm,
   *smlen += (TOTALTREE_HEIGHT+7)/8;
 
   get_seed(seed, tsk, address);
-  horst_sign(sm, root, &horst_sigbytes, m, mlen, seed, address, m_h);
+  horst_sign(sm, root, &horst_sigbytes, seed, address, m_h);
 
   sm += horst_sigbytes;
   *smlen += horst_sigbytes;
@@ -259,8 +259,6 @@ int crypto_sign_open(unsigned char *m,
 
   horst_verify(root,
                sigp+(TOTALTREE_HEIGHT+7)/8,
-               sigp+CRYPTO_BYTES-MESSAGE_HASH_SEED_BYTES,
-               smlen-CRYPTO_BYTES-MESSAGE_HASH_SEED_BYTES,
                address,
                m_h);
 
@@ -524,7 +522,7 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   get_seed(seed, tsk, address_bytes);
   unsigned char root[HASH_BYTES];
   unsigned long long horst_sigbytes;
-  horst_sign(sig, root, &horst_sigbytes, m, mlen, seed, address_bytes, m_h);
+  horst_sign(sig, root, &horst_sigbytes, seed, address_bytes, m_h);
 
   sig += horst_sigbytes;
   *slen += horst_sigbytes;
