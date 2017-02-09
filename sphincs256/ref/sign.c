@@ -501,22 +501,23 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // ==========================================================================
 
   // The message hash seed depends on:
-  //  - the seed that was used when the given context was initialized,
   //  - the seed in the secret key, and
-  //  - the used leaf index
-  unsigned char msg_hash_seed_input[SK_RAND_SEED_BYTES + SEED_BYTES +
-                                    (TOTALTREE_HEIGHT+7)/8];
-  for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
-    msg_hash_seed_input[i] = (leafidx >> 8*i) & 0xff;
-  memcpy(msg_hash_seed_input + (TOTALTREE_HEIGHT+7)/8,
-         sk + CRYPTO_SECRETKEYBYTES - SK_RAND_SEED_BYTES,
+  //  - the message
+  // shift scratch upwards so we can reuse msg later
+  unsigned char* msg_hash_seed_input = sig_bytes + CRYPTO_BYTES - SK_RAND_SEED_BYTES;
+
+  // Copy message to scratch backwards to handle m = sm overlap
+  for(i=mlen;i>0;i--)
+    msg_hash_seed_input[SK_RAND_SEED_BYTES+i-1] = m[i-1];
+
+  // Copy secret random seed to scratch
+  memcpy(msg_hash_seed_input, sk + CRYPTO_SECRETKEYBYTES - SK_RAND_SEED_BYTES,
          SK_RAND_SEED_BYTES);
-  memcpy(msg_hash_seed_input + (TOTALTREE_HEIGHT+7)/8 + SK_RAND_SEED_BYTES,
-         context.seed, SEED_BYTES);
+
   unsigned long long rnd[8];
-  crypto_hash_blake512((unsigned char*) rnd, msg_hash_seed_input,
-                       SK_RAND_SEED_BYTES + SEED_BYTES +
-                       (TOTALTREE_HEIGHT+7)/8);
+  crypto_hash_blake512((unsigned char*)rnd, msg_hash_seed_input,
+                       SK_RAND_SEED_BYTES + mlen);
+
   unsigned char* msg_hash_seed = (unsigned char*) &rnd[2];
   memcpy(sig.message_hash_seed, msg_hash_seed, MESSAGE_HASH_SEED_BYTES);
 
