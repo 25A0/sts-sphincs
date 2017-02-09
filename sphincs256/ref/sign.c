@@ -58,7 +58,7 @@ struct signature {
   // The hash seed that was used to hash the message
   unsigned char* message_hash_seed;
   // The index of the HORST leaf that signed the message
-  unsigned long long* leafidx;
+  unsigned char* leafidx;
   // The HORST signature of the message
   unsigned char* horst_signature;
   // The WOTS signatures that verify the HORST signature under the used key pair
@@ -68,14 +68,14 @@ struct signature {
   unsigned char* message;
 };
 
-static const struct signature init_signature(unsigned char* bytes) {
+static struct signature init_signature(unsigned char* bytes) {
   struct signature sig;
   unsigned long long offset = 0;
 
   sig.message_hash_seed = bytes + offset;
   offset += MESSAGE_HASH_SEED_BYTES;
 
-  sig.leafidx = (unsigned long long*) (bytes + offset);
+  sig.leafidx = bytes + offset;
   offset += (TOTALTREE_HEIGHT+7)/8;
 
   sig.horst_signature = bytes + offset;
@@ -87,6 +87,24 @@ static const struct signature init_signature(unsigned char* bytes) {
   sig.message = bytes + CRYPTO_BYTES;
 
   return sig;
+}
+
+// Since the code should ideally work across systems with different endianness,
+// this function defines unambiguously how an ull is serialized.
+static inline void
+write_ull(unsigned char* buf, const unsigned long long ull, const unsigned int bytes) {
+  int i;
+  for(i=0;i<bytes;i++)
+    buf[i] = (ull >> 8*i) & 0xff;
+}
+
+static inline unsigned long long
+read_ull(unsigned char* buf, const unsigned int bytes) {
+  unsigned long long res = 0;
+  int i;
+  for(i=0;i<bytes;i++)
+    res |= (((unsigned long long)buf[i]) << 8*i);
+  return res;
 }
 
 static inline const unsigned char* get_public_seed_from_pk(const unsigned char* pk) {
@@ -210,7 +228,7 @@ int crypto_sign(unsigned char *sm,
   *smlen += MESSAGE_HASH_SEED_BYTES;
 
   // Write the used leaf index to the signature
-  *sig.leafidx = leafidx;
+  write_ull(sig.leafidx, leafidx, (TOTALTREE_HEIGHT+7)/8);
 
   sm += (TOTALTREE_HEIGHT+7)/8;
   *smlen += (TOTALTREE_HEIGHT+7)/8;
@@ -285,7 +303,7 @@ int crypto_sign_open(unsigned char *m,
   sigp += MESSAGE_HASH_SEED_BYTES;
   smlen -= MESSAGE_HASH_SEED_BYTES;
 
-  leafidx = *sig_struct.leafidx;
+  leafidx = read_ull(sig_struct.leafidx, (TOTALTREE_HEIGHT+7)/8);
 
   unsigned char address[ADDR_BYTES];
   struct hash_addr addr = init_hash_addr(address);
@@ -513,8 +531,7 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   if(res != 0) return res;
 
   // Write used leafidx to signature
-  for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
-    sig_bytes[i] = (leafidx >> 8*i) & 0xff;
+  write_ull(sig.leafidx, leafidx, (TOTALTREE_HEIGHT+7)/8);
 
   sig_bytes += (TOTALTREE_HEIGHT+7)/8;
   *slen += (TOTALTREE_HEIGHT+7)/8;
