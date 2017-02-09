@@ -5,6 +5,7 @@
 #include "hash.h"
 #include "hash_address.h"
 #include "testutils.h"
+#include "randombytes.h"
 
 int test01() {
   unsigned long long mlen = 32;

@@ -68,8 +68,6 @@ int test02()
 
   crypto_sign_keypair(pk, sk);
 
-  unsigned char* public_seed = sk + SEED_BYTES;
-
   int layers = 4;
 
   unsigned char address[ADDR_BYTES];
@@ -126,8 +124,6 @@ int test03()
   unsigned char sk[CRYPTO_SECRETKEYBYTES];
 
   crypto_sign_keypair(pk, sk);
-
-  unsigned char* public_seed = sk + SEED_BYTES;
 
   unsigned char address[ADDR_BYTES];
   int i;

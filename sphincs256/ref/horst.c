@@ -6,17 +6,6 @@
 #include <stdio.h>
 #include "hash_address.h"
 
-static void hexdump_s(const unsigned char *data, int start, int len)
-{
-  int i;
-  for(i = 0; i < len; i++) {
-    if(i % 32 == 0) printf("\n%04d: ", i);
-    printf("%02x", data[start + i]);
-    if(i % 2) printf(" ");
-  }
-  printf("\n");
-}
-
 static void expand_seed(unsigned char outseeds[HORST_T*HORST_SKBYTES], const unsigned char inseed[SEED_BYTES])
 {
   prg(outseeds, HORST_T*HORST_SKBYTES, inseed);

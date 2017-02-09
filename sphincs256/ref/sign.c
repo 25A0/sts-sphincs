@@ -323,7 +323,6 @@ static int increment_context(unsigned char *context_bytes) {
 int crypto_context_init(unsigned char *context_bytes, unsigned long long *clen,
                         const unsigned char *sk, const unsigned char *seed)
 {
-  int i;
   *clen = 0;
 
   // =========================================

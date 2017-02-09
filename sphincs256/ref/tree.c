@@ -13,17 +13,6 @@ static inline const unsigned char* get_public_seed_from_sk(const unsigned char* 
   return sk + SEED_BYTES;
 }
 
-static void hexdump_s(unsigned char *data, int start, int len)
-{
-  int i;
-  for(i = 0; i < len; i++) {
-    if(i % 32 == 0) printf("\n%04d: ", i);
-    printf("%02x", data[start + i]);
-    if(i % 2) printf(" ");
-  }
-  printf("\n");
-}
-
 void get_seed(unsigned char seed[SEED_BYTES],
               const unsigned char *sk,
               unsigned char *address)
