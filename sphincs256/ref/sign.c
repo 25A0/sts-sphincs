@@ -54,6 +54,41 @@ static const struct batch_context init_batch_context(unsigned char* bytes) {
   return context;
 }
 
+struct signature {
+  // The hash seed that was used to hash the message
+  unsigned char* message_hash_seed;
+  // The index of the HORST leaf that signed the message
+  unsigned long long* leafidx;
+  // The HORST signature of the message
+  unsigned char* horst_signature;
+  // The WOTS signatures that verify the HORST signature under the used key pair
+  unsigned char* wots_signatures;
+
+  // The signature always contains a copy of the message at the very end
+  unsigned char* message;
+};
+
+static const struct signature init_signature(unsigned char* bytes) {
+  struct signature sig;
+  unsigned long long offset = 0;
+
+  sig.message_hash_seed = bytes + offset;
+  offset += MESSAGE_HASH_SEED_BYTES;
+
+  sig.leafidx = (unsigned long long*) (bytes + offset);
+  offset += (TOTALTREE_HEIGHT+7)/8;
+
+  sig.horst_signature = bytes + offset;
+  offset += HORST_SIGBYTES;
+
+  sig.wots_signatures = bytes + offset;
+
+  // The message is always at the very end of the signature
+  sig.message = bytes + CRYPTO_BYTES;
+
+  return sig;
+}
+
 static inline const unsigned char* get_public_seed_from_pk(const unsigned char* pk) {
   return pk + HASH_BYTES;
 }
@@ -109,6 +144,8 @@ int crypto_sign(unsigned char *sm,
 
   for(i=0;i<CRYPTO_SECRETKEYBYTES;i++)
     tsk[i] = sk[i];
+
+  struct signature sig = init_signature(sm);
 
   // create leafidx deterministically
   {
@@ -166,26 +203,26 @@ int crypto_sign(unsigned char *sm,
 
   *smlen = 0;
 
-  for(i=0; i<MESSAGE_HASH_SEED_BYTES; i++)
-    sm[i] = R[i];
+  // Write the message hash seed to the signature
+  memcpy(sig.message_hash_seed, R, MESSAGE_HASH_SEED_BYTES);
 
   sm += MESSAGE_HASH_SEED_BYTES;
   *smlen += MESSAGE_HASH_SEED_BYTES;
 
-  for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
-    sm[i] = (leafidx >> 8*i) & 0xff;
+  // Write the used leaf index to the signature
+  *sig.leafidx = leafidx;
 
   sm += (TOTALTREE_HEIGHT+7)/8;
   *smlen += (TOTALTREE_HEIGHT+7)/8;
 
   get_seed(seed, tsk, address);
-  horst_sign(sm, root, &horst_sigbytes, seed, address, m_h);
+  horst_sign(sig.horst_signature, root, &horst_sigbytes, seed, address, m_h);
 
   sm += horst_sigbytes;
   *smlen += horst_sigbytes;
 
   *addr.subtree_layer = 0;
-  sign_leaf(root, N_LEVELS, sm, smlen, tsk, address);
+  sign_leaf(root, N_LEVELS, sig.wots_signatures, smlen, tsk, address);
 
   zerobytes(tsk, CRYPTO_SECRETKEYBYTES);
 
@@ -205,12 +242,15 @@ int crypto_sign_open(unsigned char *m,
   unsigned long long i;
   unsigned long long leafidx=0;
   unsigned char root[HASH_BYTES];
-  unsigned char sig[CRYPTO_BYTES];
+  unsigned char sig_bytes[CRYPTO_BYTES];
   unsigned char *sigp;
   unsigned char tpk[CRYPTO_PUBLICKEYBYTES];
 
   if(smlen < CRYPTO_BYTES)
     return -1;
+
+  memcpy(sig_bytes, sm, CRYPTO_BYTES);
+  struct signature sig_struct = init_signature(sig_bytes);
 
   unsigned char m_h[MSGHASH_BYTES];
 
@@ -221,15 +261,13 @@ int crypto_sign_open(unsigned char *m,
   {
     unsigned char R[MESSAGE_HASH_SEED_BYTES];
 
-    for(i=0; i<MESSAGE_HASH_SEED_BYTES; i++)
-      R[i] = sm[i];
+    memcpy(R, sig_struct.message_hash_seed, MESSAGE_HASH_SEED_BYTES);
 
     // Message length
     int len = smlen - CRYPTO_BYTES;
 
     unsigned char *scratch = m;
 
-    memcpy(sig, sm, CRYPTO_BYTES);
 
     memcpy(scratch + MESSAGE_HASH_SEED_BYTES + CRYPTO_PUBLICKEYBYTES, sm + CRYPTO_BYTES, len);
 
@@ -242,14 +280,12 @@ int crypto_sign_open(unsigned char *m,
     msg_hash(m_h, scratch, len + MESSAGE_HASH_SEED_BYTES + CRYPTO_PUBLICKEYBYTES);
 
   }
-  sigp = &sig[0];
+  sigp = sig_bytes;
 
   sigp += MESSAGE_HASH_SEED_BYTES;
   smlen -= MESSAGE_HASH_SEED_BYTES;
 
-
-  for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
-    leafidx ^= (((unsigned long long)sigp[i]) << 8*i);
+  leafidx = *sig_struct.leafidx;
 
   unsigned char address[ADDR_BYTES];
   struct hash_addr addr = init_hash_addr(address);
@@ -258,7 +294,7 @@ int crypto_sign_open(unsigned char *m,
   *addr.subtree_node = leafidx % (1<<SUBTREE_HEIGHT);
 
   horst_verify(root,
-               sigp+(TOTALTREE_HEIGHT+7)/8,
+               sig_struct.horst_signature,
                address,
                m_h);
 
@@ -269,7 +305,7 @@ int crypto_sign_open(unsigned char *m,
   smlen -= HORST_SIGBYTES;
 
   *addr.subtree_layer = 0;
-  verify_leaf(root, N_LEVELS, sigp, smlen, pk, address);
+  verify_leaf(root, N_LEVELS, sig_struct.wots_signatures, smlen, pk, address);
 
   for(i=0;i<HASH_BYTES;i++)
     if(root[i] != tpk[i])
@@ -426,7 +462,7 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
 
 int crypto_sign_update(unsigned char *m, unsigned long long mlen,
                        unsigned char *context_bytes, unsigned long long *clen,
-                       unsigned char *sig, unsigned long long *slen,
+                       unsigned char *sig_bytes, unsigned long long *slen,
                        const unsigned char *sk)
 {
   *slen = 0;
@@ -437,6 +473,7 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
     tsk[i] = sk[i];
 
   struct batch_context context = init_batch_context(context_bytes);
+  struct signature sig = init_signature(sig_bytes);
 
   // Read leafidx from updated context
   unsigned long long leafidx = *context.next_leafidx;
@@ -463,9 +500,9 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
                        SK_RAND_SEED_BYTES + SEED_BYTES +
                        (TOTALTREE_HEIGHT+7)/8);
   unsigned char* msg_hash_seed = (unsigned char*) &rnd[2];
-  memcpy(sig, msg_hash_seed, MESSAGE_HASH_SEED_BYTES);
+  memcpy(sig.message_hash_seed, msg_hash_seed, MESSAGE_HASH_SEED_BYTES);
 
-  sig += MESSAGE_HASH_SEED_BYTES;
+  sig_bytes += MESSAGE_HASH_SEED_BYTES;
   *slen += MESSAGE_HASH_SEED_BYTES;
 
   // ==============================================================
@@ -477,9 +514,9 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
 
   // Write used leafidx to signature
   for(i=0;i<(TOTALTREE_HEIGHT+7)/8;i++)
-    sig[i] = (leafidx >> 8*i) & 0xff;
+    sig_bytes[i] = (leafidx >> 8*i) & 0xff;
 
-  sig += (TOTALTREE_HEIGHT+7)/8;
+  sig_bytes += (TOTALTREE_HEIGHT+7)/8;
   *slen += (TOTALTREE_HEIGHT+7)/8;
 
   // ==============================================================
@@ -521,16 +558,16 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   get_seed(seed, tsk, address_bytes);
   unsigned char root[HASH_BYTES];
   unsigned long long horst_sigbytes;
-  horst_sign(sig, root, &horst_sigbytes, seed, address_bytes, m_h);
+  horst_sign(sig.horst_signature, root, &horst_sigbytes, seed, address_bytes, m_h);
 
-  sig += horst_sigbytes;
+  sig_bytes += horst_sigbytes;
   *slen += horst_sigbytes;
 
   // ==============================================================
   // Create WOTS signature for lvl 0
   // ==============================================================
   *address.subtree_layer = 0;
-  sign_leaf(root, 1, sig, slen, tsk, address_bytes);
+  sign_leaf(root, 1, sig.wots_signatures, slen, tsk, address_bytes);
 
   // ==============================================================
   // The verifier already has a copy of the rest of the signature
