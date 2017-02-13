@@ -68,10 +68,7 @@ int test02()
   unsigned char context[CRYPTO_CONTEXTBYTES];
   unsigned long long clen;
 
-  unsigned char seed[SEED_BYTES];
-  randombytes(seed, SEED_BYTES);
-
-  int res = crypto_context_init(context, &clen, sk, seed);
+  int res = crypto_context_init(context, &clen, sk, -1);
   if(res != 0) return res;
 
   unsigned char sm[CRYPTO_BYTES + mlen];
@@ -99,11 +96,8 @@ int test03()
   unsigned char context[CRYPTO_CONTEXTBYTES];
   unsigned long long clen;
 
-  unsigned char seed[SEED_BYTES];
-  randombytes(seed, SEED_BYTES);
-
   int res = 0;
-  res |= crypto_context_init(context, &clen, sk, seed);
+  res |= crypto_context_init(context, &clen, sk, -1);
   if(res != 0) return res;
 
   unsigned char sm1[CRYPTO_BYTES + mlen];

@@ -1,4 +1,9 @@
-#include "crypto_sign.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#include "sign.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -369,28 +374,45 @@ static int increment_context(unsigned char *context_bytes) {
 }
 
 int crypto_context_init(unsigned char *context_bytes, unsigned long long *clen,
-                        const unsigned char *sk, const unsigned char *seed)
+                        const unsigned char *sk, long long subtree_idx)
 {
   *clen = 0;
 
-  // =========================================
-  // Generate initial leafidx from seed and sk
-  // =========================================
   unsigned long long leafidx;
+  // If the subtree index is -1 then we choose a random subtree, otherewise
+  // we use the one provided by the user
+  if(subtree_idx < 0) {
+    // ===============================
+    // Generate a random subtree index
+    // ===============================
 
-  unsigned char scratch[SK_RAND_SEED_BYTES + SEED_BYTES];
-  memcpy(scratch, sk + CRYPTO_SECRETKEYBYTES - SK_RAND_SEED_BYTES,
-         SK_RAND_SEED_BYTES);
-  memcpy(scratch, seed, SEED_BYTES);
-  unsigned long long rnd[8];
-  crypto_hash_blake512((unsigned char*) rnd, scratch, SK_RAND_SEED_BYTES + SEED_BYTES);
-  zerobytes(scratch, SK_RAND_SEED_BYTES + SEED_BYTES);
+    // TODO: ideally we should use getentropy from sys/random.h if it's
+    // available.
+    unsigned char scratch[SK_RAND_SEED_BYTES + SEED_BYTES];
+    memcpy(scratch, sk + CRYPTO_SECRETKEYBYTES - SK_RAND_SEED_BYTES,
+           SK_RAND_SEED_BYTES);
+    int file = open("/dev/urandom", O_RDONLY);
+    int read_bytes = read(file, scratch + SK_RAND_SEED_BYTES, SEED_BYTES);
+    close(file);
+    if(read_bytes < SEED_BYTES) return -1;
+    unsigned long long rnd[8];
+    crypto_hash_blake512((unsigned char*) rnd, scratch, SK_RAND_SEED_BYTES + SEED_BYTES);
+    zerobytes(scratch, SK_RAND_SEED_BYTES + SEED_BYTES);
 
-  // The lower 60 bit % (2^SUBTREE_HEIGHT) form the leafidx.
-  // This comes down to picking a random subtree on the lowest level,
-  // and picking the left-most leaf in that subtree
-  leafidx = (rnd[0] & 0xfffffffffffffff);
-  leafidx -= leafidx % (1<<SUBTREE_HEIGHT);
+    // The lower 60 bit % (2^SUBTREE_HEIGHT) form the leafidx.
+    // This comes down to picking a random subtree on the lowest level,
+    // and picking the left-most leaf in that subtree
+    leafidx = (rnd[0] & 0xfffffffffffffff);
+    leafidx -= leafidx % (1<<SUBTREE_HEIGHT);
+  } else if(subtree_idx >= (long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT) ) {
+    // This index is not a valid subtree index.
+    return -1;
+  } else {
+    // Shifting the subtree_idx to the left by the subtree height turns
+    // the subtree index into the index of its left-most leaf.
+    // For example, the left-most leaf of subtree 1 has index 2^SUBTREE_HEIGHT.
+    leafidx = subtree_idx << SUBTREE_HEIGHT;
+  }
 
   struct batch_context context = init_batch_context(context_bytes);
 
