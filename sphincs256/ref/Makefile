@@ -15,6 +15,9 @@ CFLAGS=-g -Wall
 libsphincs.a: sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o blake512.o permute.o prg.o chacha12.o hash_address.o tree.o
 	$(AR) -ar cr $@ $^
 
+libsphincs_sequential.a: sign.o sequential_batch_sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o blake512.o permute.o prg.o chacha12.o hash_address.o tree.o
+	$(AR) -ar cr $@ $^
+
 test_hash_addr.o: testutils.o test_hash_addr.c hash_address.o randombytes.o
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
@@ -28,6 +31,9 @@ test_tree.o: testutils.o test_tree.c libsphincs.a
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
 test_sphincs.o: testutils.o test_sphincs.c libsphincs.a
+	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+
+test_sequential_batch_sign.o: testutils.o test_sequential_batch_sign.c libsphincs_sequential.a
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
 bench_speed.o: testutils.o bench_speed.c libsphincs.a

@@ -8,31 +8,29 @@ int crypto_sign_open(unsigned char *m,unsigned long long *mlen,
                      const unsigned char *sm,unsigned long long smlen,
                      const unsigned char *pk);
 
-/* Initialize a new context based on the given secret key.
- * If a negative value is passed as the subtree index (subtree_idx),
- * a random subtree will be used.
- * If a subtree index between 0 and 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)
- * is passed, then that index will be used. The initialization will fail
- * with values larger than 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT).
- */
-int crypto_context_init(unsigned char *context, unsigned long long *clen,
-                        const unsigned char *sk, long long subtree_idx);
+struct signature {
+  // The hash seed that was used to hash the message
+  unsigned char* message_hash_seed;
+  // The index of the HORST leaf that signed the message
+  unsigned char* leafidx;
+  // The HORST signature of the message
+  unsigned char* horst_signature;
+  // The WOTS signatures that verify the HORST signature under the used key pair
+  unsigned char* wots_signatures;
 
-int crypto_sign_full(unsigned char *m, unsigned long long mlen,
-                     unsigned char *context, unsigned long long *clen,
-                     unsigned char *sig, unsigned long long *slen,
-                     const unsigned char *sk);
+  // The signature always contains a copy of the message at the very end
+  unsigned char* message;
+};
 
-int crypto_sign_update(unsigned char *m, unsigned long long mlen,
-                       unsigned char *context, unsigned long long *clen,
-                       unsigned char *sig, unsigned long long *slen,
-                       const unsigned char *sk);
+struct signature init_signature(unsigned char* bytes);
 
-int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
-                          const unsigned char *sm, unsigned long long smlen,
-                          const unsigned char *pk);
+void write_ull(unsigned char* buf, const unsigned long long ull,
+                      const unsigned int bytes);
 
-int crypto_sign_open_update(unsigned char *m, unsigned long long *mlen,
-                            const unsigned char* context, unsigned long long *clen,
-                            const unsigned char* sig, unsigned long long smlen,
-                            const unsigned char *pk);
+unsigned long long read_ull(unsigned char* buf, const unsigned int bytes);
+
+const unsigned char* get_public_seed_from_pk(const unsigned char* pk);
+
+const unsigned char* get_public_seed_from_sk(const unsigned char* sk);
+
+int get_system_entropy(void* buf, unsigned int length);
