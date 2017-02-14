@@ -343,6 +343,16 @@ fail:
   return -1;
 }
 
+int get_system_entropy(void* buf, unsigned int length) {
+    // TODO: ideally we should use getentropy from sys/random.h if it's
+    // available.
+    int file = open("/dev/urandom", O_RDONLY);
+    int read_bytes = read(file, buf, length);
+    close(file);
+    if(read_bytes < length) return -1;
+    else return 0;
+}
+
 /*
  * Increment whatever identifier determines which leaf is used to sign
  * the next message
@@ -386,15 +396,11 @@ int crypto_context_init(unsigned char *context_bytes, unsigned long long *clen,
     // Generate a random subtree index
     // ===============================
 
-    // TODO: ideally we should use getentropy from sys/random.h if it's
-    // available.
     unsigned char scratch[SK_RAND_SEED_BYTES + SEED_BYTES];
     memcpy(scratch, sk + CRYPTO_SECRETKEYBYTES - SK_RAND_SEED_BYTES,
            SK_RAND_SEED_BYTES);
-    int file = open("/dev/urandom", O_RDONLY);
-    int read_bytes = read(file, scratch + SK_RAND_SEED_BYTES, SEED_BYTES);
-    close(file);
-    if(read_bytes < SEED_BYTES) return -1;
+    int err = get_system_entropy(scratch + SK_RAND_SEED_BYTES, SEED_BYTES);
+    if(err) return err;
     unsigned long long rnd[8];
     crypto_hash_blake512((unsigned char*) rnd, scratch, SK_RAND_SEED_BYTES + SEED_BYTES);
     zerobytes(scratch, SK_RAND_SEED_BYTES + SEED_BYTES);
