@@ -6,6 +6,5 @@
 #define CRYPTO_DETERMINISTIC 1
 
 #define CRYPTO_CONTEXTBYTES ((TOTALTREE_HEIGHT+7)/8 + HASH_BYTES + \
-                             SEED_BYTES +                          \
                              (N_LEVELS - 1) * (WOTS_SIGBYTES + \
                                                SUBTREE_HEIGHT * HASH_BYTES))
