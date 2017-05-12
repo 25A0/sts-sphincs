@@ -25,12 +25,9 @@
 struct batch_context{
   // The leaf index that should be used for the next signature
   unsigned long long* next_leafidx;
-  // The hash of the subtree on level 0.  All signatures created with this
-  // context use a leaf which is a child of the subtree with this hash.
-  unsigned char* level_0_hash;
 
-  // The N_LEVELS-1 WOTS signatures that sign level_0_hash under the
-  // key pair that was used to generate this context
+  // The N_LEVELS-1 WOTS signatures that sign the hash of the subtree on level
+  // 0 under the key pair that was used to generate this context
   unsigned char* signatures;
 };
 
@@ -40,9 +37,6 @@ const struct batch_context init_batch_context(unsigned char* bytes) {
 
   context.next_leafidx = (unsigned long long*) bytes + offset;
   offset += (TOTALTREE_HEIGHT+7)/8;
-
-  context.level_0_hash = bytes + offset;
-  offset += HASH_BYTES;
 
   context.signatures = bytes + offset;
 
@@ -137,17 +131,15 @@ int crypto_context_init(unsigned char *context_bytes, unsigned long long *clen,
   *address.subtree_node = leafidx % (1 <<SUBTREE_HEIGHT);
 
   unsigned char* public_seed = get_public_seed_from_sk(sk);
-  treehash(context.level_0_hash, SUBTREE_HEIGHT, sk, address_bytes, public_seed);
-
-  *clen += HASH_BYTES;
-
+  unsigned char level_0_hash[HASH_BYTES];
+  treehash(level_0_hash, SUBTREE_HEIGHT, sk, address_bytes, public_seed);
 
   // ==============================================================
   // Write the upper N_LEVELS - 1 WOTS signatures to the context
   // ==============================================================
   set_type(address_bytes, SPHINCS_ADDR);
   parent(SUBTREE_HEIGHT, address);
-  sign_leaf(context.level_0_hash, N_LEVELS - 1, context.signatures, clen, sk, address_bytes);
+  sign_leaf(level_0_hash, N_LEVELS - 1, context.signatures, clen, sk, address_bytes);
 
   return 0;
 }
