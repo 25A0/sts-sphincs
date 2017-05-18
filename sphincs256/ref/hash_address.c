@@ -34,7 +34,7 @@ struct hash_addr init_hash_addr(unsigned char *bytes)
 {
   struct hash_addr addr;
   // For all types
-  addr.subtree_layer = (uint8_t *) (bytes + 1);
+  addr.subtree_layer = (int8_t *) (bytes + 1);
   addr.subtree_address = (uint64_t *) (bytes + 2);
   addr.subtree_node = (uint32_t *) (bytes + 10);
 
