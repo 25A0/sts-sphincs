@@ -31,7 +31,7 @@ struct hash_addr{
   // fields need to be reset. To enforce this, the type
   // needs to be changed with the set_type function.
 
-  int8_t *subtree_layer;
+  uint8_t *subtree_layer;
   uint64_t *subtree_address;
   uint32_t *subtree_node;
 
