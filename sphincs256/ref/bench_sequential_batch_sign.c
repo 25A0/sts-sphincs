@@ -26,24 +26,12 @@ int bench()
 
   unsigned char sm1[CRYPTO_BYTES + mlen];
   unsigned long long slen1;
-  unsigned char sm2[CRYPTO_BYTES + mlen];
-  unsigned long long slen2;
 
   res |= crypto_sign_full(message, mlen, context, &clen, sm1, &slen1, sk);
   if(res != 0) return res;
-  res |= crypto_sign_full(message, mlen, context, &clen, sm2, &slen2, sk);
-  if(res != 0) return res;
-
-  // The length of both signatures should be the same
-  if(slen1 != slen2) return -1;
-
-  // Make sure that the signatures are not identical
-  int eq = compare(sm1, sm2, slen1);
-  if(!eq) return -2;
 
   // Both signatures should verify
   res |= crypto_sign_open(message, &mlen, sm1, slen1, pk);
-  res |= crypto_sign_open(message, &mlen, sm2, slen2, pk) << 1;
 
   return res;
 }
