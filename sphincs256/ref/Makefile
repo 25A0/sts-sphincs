@@ -36,6 +36,9 @@ test_sphincs.o: testutils.o test_sphincs.c libsphincs.a
 test_sequential_batch_sign.o: testutils.o test_sequential_batch_sign.c libsphincs_sequential.a
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
+bench_sequential_batch_sign.o: testutils.o bench_sequential_batch_sign.c libsphincs_sequential.a
+	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+
 bench_speed.o: testutils.o bench_speed.c libsphincs.a
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
