@@ -21,10 +21,6 @@ void get_seed(unsigned char seed[SEED_BYTES],
 #error "Need to have 8 <= N_LEVELS <= 15"
 #endif
 
-#if SUBTREE_HEIGHT != 5
-#error "Need to have SUBTREE_HEIGHT == 5"
-#endif
-
 #if TOTALTREE_HEIGHT != 60
 #error "Need to have TOTALTREE_HEIGHT == 60"
 #endif
