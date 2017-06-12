@@ -13,6 +13,11 @@ static __inline__ unsigned long GetCC(void)
   return ((unsigned long)a) | (((unsigned long)d) << 32);
 }
 
+void print_elapsed(const char* desc, unsigned long start, unsigned long end)
+{
+  printf("%s: %lu\n", desc, end - start);
+}
+
 int bench()
 {
   unsigned long start_count = GetCC();
@@ -23,26 +28,47 @@ int bench()
   unsigned char message[mlen + CRYPTO_BYTES];
   randombytes(message, mlen);
 
-  crypto_sign_keypair(pk, sk);
+  {
+    unsigned long start = GetCC();
+    crypto_sign_keypair(pk, sk);
+    unsigned long end = GetCC();
+    print_elapsed("Keypair", start, end);
+  }
 
   unsigned char context[CRYPTO_CONTEXTBYTES];
   unsigned long long clen;
 
   int res = 0;
-  res |= crypto_context_init(context, &clen, sk, -1);
-  if(res != 0) return res;
+  {
+    unsigned long start = GetCC();
+    res |= crypto_context_init(context, &clen, sk, -1);
+    if(res != 0) return res;
+    unsigned long end = GetCC();
+    print_elapsed("Context init", start, end);
+  }
 
   unsigned char sm1[CRYPTO_BYTES + mlen];
   unsigned long long slen1;
 
-  res |= crypto_sign_full(message, mlen, context, &clen, sm1, &slen1, sk);
-  if(res != 0) return res;
+  {
+    unsigned long start = GetCC();
+    res |= crypto_sign_full(message, mlen, context, &clen, sm1, &slen1, sk);
+    if(res != 0) return res;
+    unsigned long end = GetCC();
+    print_elapsed("Sign", start, end);
+  }
 
   // Both signatures should verify
-  res |= crypto_sign_open(message, &mlen, sm1, slen1, pk);
+  {
+    unsigned long start = GetCC();
+    res |= crypto_sign_open(message, &mlen, sm1, slen1, pk);
+    unsigned long end = GetCC();
+    print_elapsed("Verify", start, end);
+  }
+
 
   unsigned long end_count = GetCC();
-  printf("Elapsed cycles: %lu\n", end_count - start_count);
+  print_elapsed("Elapsed cycles", start_count, end_count);
   return res;
 }
 
