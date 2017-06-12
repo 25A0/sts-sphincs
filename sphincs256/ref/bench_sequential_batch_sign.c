@@ -6,8 +6,16 @@
 #include "testutils.h"
 #include "randombytes.h"
 
+static __inline__ unsigned long GetCC(void)
+{
+  unsigned a, d;
+  asm volatile("rdtsc" : "=a" (a), "=d" (d));
+  return ((unsigned long)a) | (((unsigned long)d) << 32);
+}
+
 int bench()
 {
+  unsigned long start_count = GetCC();
   unsigned char sk[CRYPTO_SECRETKEYBYTES];
   unsigned char pk[CRYPTO_PUBLICKEYBYTES];
 
@@ -33,6 +41,8 @@ int bench()
   // Both signatures should verify
   res |= crypto_sign_open(message, &mlen, sm1, slen1, pk);
 
+  unsigned long end_count = GetCC();
+  printf("Elapsed cycles: %lu\n", end_count - start_count);
   return res;
 }
 
