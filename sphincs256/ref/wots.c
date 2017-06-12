@@ -2,6 +2,7 @@
 #include "prg.h"
 #include "hash.h"
 #include "hash_address.h"
+#include "assert.h"
 
 static void expand_seed(unsigned char out[WOTS_L*HASH_BYTES],
                         const unsigned char sk[SEED_BYTES],
@@ -30,21 +31,23 @@ void gen_chain(unsigned char out[HASH_BYTES],
                int start_link)
 {
   struct hash_addr address = init_hash_addr(addr);
-  if(chainlen) {
-    int n;
+  int n;
+  for (n = 0; n < HASH_BYTES; n++)
+  {
+    out[n] = in[n];
+  }
+  // buffer holding k_ij and r_ij, in this order
+  unsigned char kr[2 * HASH_BYTES];
+  assert(chainlen >= 0);
+  assert(start_link >= 0);
 
-    // call gen_chain recursively for i - 1
-    gen_chain(out, in, seed, addr, chainlen - 1, start_link);
-    start_link += chainlen - 1;
-
-    // buffer holding k_ij and r_ij, in this order
-    unsigned char kr[2 * HASH_BYTES];
-
+  int link;
+  for(link = 0; link < chainlen; link++) {
     // Note that chainlen will always be > 0
-    *address.wots_ots_index = 2*start_link;
+    *address.wots_ots_index = 2*(start_link + link);
     hash_n_n_addr(kr, seed, (unsigned char*) addr);
 
-    *address.wots_ots_index = 2*start_link + 1;
+    *address.wots_ots_index = 2*(start_link + link) + 1;
     hash_n_n_addr(kr + HASH_BYTES, seed, (unsigned char*) addr);
 
     for (n = 0; n < HASH_BYTES; ++n) {
@@ -53,14 +56,8 @@ void gen_chain(unsigned char out[HASH_BYTES],
     }
 
     hash_2n_n(out, kr);
-
-  } else {
-    int n;
-    for (n = 0; n < HASH_BYTES; n++)
-    {
-      out[n] = in[n];
-    }
   }
+
 }
 
 
