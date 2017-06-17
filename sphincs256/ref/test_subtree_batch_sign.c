@@ -42,7 +42,7 @@ int test01()
   res = crypto_sign_full(message, mlen, context, &clen, sm, &slen, sk);
   if(res != 0) return res;
 
-  res = crypto_sign_open(message, &mlen, sm, slen, pk);
+  res = crypto_sign_open_full(message, &mlen, sm, slen, pk);
 
   return res;
 }

@@ -199,10 +199,14 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
   unsigned char m_h[MSGHASH_BYTES];
   msg_hash(m_h, msg_hash_input, msg_hash_input_size);
 
-  horst_sign(context.horst_signature, root, &horst_sigbytes, seed, addr_bytes, m_h);
+  unsigned char horst_root[HASH_BYTES];
+  horst_sign(context.horst_signature, horst_root, &horst_sigbytes, seed,
+             addr_bytes, m_h);
 
+  *address.subtree_layer = 0;
   *clen = 0;
-  int err = sign_leaf(context.horst_signature, N_LEVELS,
+
+  int err = sign_leaf(horst_root, N_LEVELS,
                       context.wots_signatures, clen,
                       sk,
                       addr_bytes);
@@ -217,16 +221,25 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
                      unsigned char *sig, unsigned long long *slen,
                      const unsigned char *sk)
 {
+  unsigned char* sigp = sig;
+  struct batch_context context = init_batch_context(context_bytes);
+
+  // Start off by writing the used leaf idx to the signature
+  memcpy(sigp, (unsigned char*) context.leafidx, sizeof(unsigned long long));
+  sigp += sizeof(unsigned long long);
+
   // Do whatever needs to happen for crypto_sign_update
-  int res = crypto_sign_update(m, mlen, context_bytes, clen, sig, slen, sk);
+  *slen = 0;
+  int res = crypto_sign_update(m, mlen, context_bytes, clen, sigp, slen, sk);
   if(res) {
     return res;
   }
-  unsigned char* sigp = sig  + *slen;
-
-  struct batch_context context = init_batch_context(context_bytes);
+  sigp += *slen;
 
   // Copy the remaining SPHINCS signature to the signature buffer
+  memcpy(sigp, context.message_hash_seed, MESSAGE_HASH_SEED_BYTES);
+  sigp += MESSAGE_HASH_SEED_BYTES;
+
   memcpy(sigp, context.horst_signature, HORST_SIGBYTES);
   sigp += HORST_SIGBYTES;
 
@@ -236,7 +249,7 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
 
   *slen = CRYPTO_BYTES;
 
-  return 1;
+  return 0;
 }
 
 int crypto_sign_update(unsigned char *m, unsigned long long mlen,
@@ -276,7 +289,9 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   *address.subtree_node = subtree_leafidx;
 
   unsigned char seed[SEED_BYTES];
-  get_seed(seed, sk, addr_bytes);
+  // Note that the WOTS seed is generated from the seed stored in the short-time
+  // context, and not from the secret key.
+  get_seed(seed, context.subtree_sk_seed, addr_bytes);
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
 
   wots_sign(sigp, msg_hash, seed, public_seed, addr_bytes);
@@ -284,10 +299,61 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   *slen += WOTS_SIGBYTES;
 
   // Store the authentication path of that signature in the signature buffer
-  compute_authpath_wots(msg_hash, sigp, addr_bytes, sk, SUBTREE_HEIGHT,
+  // Note that the subtree seed is passed to this function instead of the
+  // secret key. This is so that WOTS key pairs can be generated based on
+  // that seed, rather than the secret key. Otherwise the key pairs
+  // would be the same for each short-time state.
+  compute_authpath_wots(msg_hash, sigp, addr_bytes, context.subtree_sk_seed,
+                        STS_SUBTREE_HEIGHT,
                         public_seed);
-  sigp += SUBTREE_HEIGHT*HASH_BYTES;
-  *slen += SUBTREE_HEIGHT*HASH_BYTES;
+  sigp += STS_SUBTREE_HEIGHT*HASH_BYTES;
+  *slen += STS_SUBTREE_HEIGHT*HASH_BYTES;
+
+  return 0;
+}
+
+/* Restores the root of the short-time subtree from message m and signature sig
+ */
+int restore_subtree_root(unsigned char *m, unsigned long long *mlen,
+                         const unsigned char* sigp, unsigned long long slen,
+                         unsigned long long leafidx,
+                         const unsigned char* public_seed,
+                         unsigned char* level_0_hash)
+{
+  // Read the used leaf idx from the signature
+  unsigned long subtree_leafidx = *((unsigned long*) sigp);
+  sigp += sizeof(unsigned long);
+  slen -= sizeof(unsigned long);
+
+  // Hash the message to HASH_BYTES
+  unsigned char msg_hash[HASH_BYTES];
+  varlen_hash(msg_hash, m, *mlen);
+
+  // Generate an address for this subtree
+  unsigned char addr_bytes[ADDR_BYTES];
+  zerobytes(addr_bytes, ADDR_BYTES);
+  struct hash_addr address = init_hash_addr(addr_bytes);
+  set_type(addr_bytes, SPHINCS_ADDR);
+  *address.subtree_layer = N_LEVELS + 1;
+  *address.subtree_address = leafidx;
+  *address.subtree_node = subtree_leafidx;
+
+  // The public key components will be stored in this buffer
+  unsigned char wots_pk[WOTS_L * HASH_BYTES];
+
+  wots_verify(wots_pk, sigp, msg_hash, public_seed, addr_bytes);
+  sigp += WOTS_SIGBYTES;
+  slen -= WOTS_SIGBYTES;
+
+  // Now construct an L-tree from that
+  unsigned char pk_hash[HASH_BYTES];
+  l_tree(pk_hash, wots_pk, addr_bytes, public_seed);
+
+  // validate_authpath(root, pkhash, leafidx & 0x1f, sigp, tpk, SUBTREE_HEIGHT);
+  validate_authpath(level_0_hash, pk_hash, addr_bytes, public_seed, sigp,
+                    STS_SUBTREE_HEIGHT);
+  sigp += HASH_BYTES * STS_SUBTREE_HEIGHT;
+  slen -= HASH_BYTES * STS_SUBTREE_HEIGHT;
 
   return 0;
 }
@@ -296,26 +362,69 @@ int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
                           const unsigned char *sm, unsigned long long smlen,
                           const unsigned char *pk)
 {
-  // Verify the signature of the message by restoring the root of the short-time
-  // subtree, using crypto_sign_open_update
+  const unsigned char* sigp = sm;
+
+  // Read the subtree leaf idx from the signature
+  unsigned long long leafidx = *((unsigned long long*) sigp);
+  sigp += sizeof(unsigned long long);
+  smlen -= sizeof(unsigned long long);
+
+  // Restore the root of the short-time subtree
+  unsigned char restored_subtree_root[HASH_BYTES];
+  const unsigned char* public_seed = get_public_seed_from_pk(pk);
+  int res =  restore_subtree_root(m, mlen, sigp, smlen, leafidx, public_seed,
+                                  restored_subtree_root);
+  if(res) return res;
 
   // Verify the root of the short-time subtree by restoring the root of the
   // SPHINCS tree with the rest of the signature
+  unsigned int msg_hash_input_size = MESSAGE_HASH_SEED_BYTES + HASH_BYTES;
+  unsigned char msg_hash_input[msg_hash_input_size];
+
+  const unsigned char* message_hash_seed = sigp;
+  sigp += MESSAGE_HASH_SEED_BYTES;
+  smlen -= MESSAGE_HASH_SEED_BYTES;
+
+  memcpy(msg_hash_input, message_hash_seed, MESSAGE_HASH_SEED_BYTES);
+  memcpy(msg_hash_input + MESSAGE_HASH_SEED_BYTES,
+         restored_subtree_root, HASH_BYTES);
+
+  unsigned char message_hash[MSGHASH_BYTES];
+  msg_hash(message_hash, msg_hash_input, msg_hash_input_size);
+
+  // Generate an address for this subtree
+  unsigned char addr_bytes[ADDR_BYTES];
+  zerobytes(addr_bytes, ADDR_BYTES);
+  struct hash_addr address = init_hash_addr(addr_bytes);
+  set_type(addr_bytes, SPHINCS_ADDR);
+  *address.subtree_layer = N_LEVELS;
+  *address.subtree_address = leafidx >> SUBTREE_HEIGHT;
+  *address.subtree_node = leafidx % (1<<SUBTREE_HEIGHT);
+
+  // Restore the HORST public key
+  unsigned char leaf[HASH_BYTES];
+  res = horst_verify(leaf,
+                     sigp,
+                     addr_bytes,
+                     message_hash);
+  if(res) return res;
+  sigp += HORST_SIGBYTES;
+  smlen -= HORST_SIGBYTES;
+
+  *address.subtree_layer = 0;
+
+  // Restore the root of the hypertree
+  res = verify_leaf(leaf, N_LEVELS,
+                    sigp, smlen,
+                    pk,
+                    addr_bytes);
+  if(res) return res;
 
   // Verify that the restored root is indeed the expected public key
-
-  return 0;
-}
-
-int crypto_sign_open_update(unsigned char *m, unsigned long long *mlen,
-                            const unsigned char* context, unsigned long long *clen,
-                            const unsigned char* sig, unsigned long long smlen,
-                            const unsigned char *pk)
-{
-  // Restore the root of the short-time subtree, using the message and the given
-  // authentication path
-
-  // Verify that that root equals the expected root
+  int i;
+  for(i=0; i < HASH_BYTES; i++) {
+    if(pk[i] != leaf[i]) return 1;
+  }
 
   return 0;
 }

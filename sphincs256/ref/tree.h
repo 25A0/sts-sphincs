@@ -40,7 +40,8 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
                            const unsigned char *public_seed);
 
 /* Signs the first HASH_BYTES bytes of leaf with the given secret key sk.
- * The start_height and end_height determines how many layers will be signed.
+ * num_levels determines how many layers will be signed. The start and end
+ * height are set in the addresses.
  */
 int sign_leaf(unsigned char* leaf, int num_levels,
               unsigned char *sm, unsigned long long *smlen,
@@ -50,5 +51,5 @@ int sign_leaf(unsigned char* leaf, int num_levels,
 int verify_leaf(unsigned char *root, int num_levels,
                 unsigned char *sigp, unsigned long long smlen,
                 const unsigned char *pk,
-                unsigned char *root_address);
+                unsigned char *leaf_address);
 #endif
