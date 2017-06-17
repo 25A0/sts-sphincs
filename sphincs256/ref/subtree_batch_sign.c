@@ -201,7 +201,7 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
 
   horst_sign(context.horst_signature, root, &horst_sigbytes, seed, addr_bytes, m_h);
 
-  clen = 0;
+  *clen = 0;
   int err = sign_leaf(context.horst_signature, N_LEVELS,
                       context.wots_signatures, clen,
                       sk,
