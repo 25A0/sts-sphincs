@@ -21,8 +21,3 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
 int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
                           const unsigned char *sm, unsigned long long smlen,
                           const unsigned char *pk);
-
-int crypto_sign_open_update(unsigned char *m, unsigned long long *mlen,
-                            const unsigned char* context, unsigned long long *clen,
-                            const unsigned char* sig, unsigned long long smlen,
-                            const unsigned char *pk);

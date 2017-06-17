@@ -304,34 +304,3 @@ int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
   // Should act the same way a normal signature works
   return crypto_sign_open(m, mlen, sm, smlen, pk);
 }
-
-int crypto_sign_open_update(unsigned char *m, unsigned long long *mlen,
-                            const unsigned char* context, unsigned long long *clen,
-                            const unsigned char* sig, unsigned long long smlen,
-                            const unsigned char *pk)
-{
-  // ==============================================================
-  // Construct message hash
-  // ==============================================================
-
-  // ==============================================================
-  // Reconstruct leafidx
-  // ==============================================================
-
-  // ==============================================================
-  // Verify horst signature
-  // ==============================================================
-
-  // ==============================================================
-  // Verify WOTS signature
-  // ==============================================================
-
-  // ==============================================================
-  // Restore root of lowest SPHINCS tree
-  // ==============================================================
-
-  // ==============================================================
-  // Compare that root with the root in context
-  // ==============================================================
-  return 0;
-}
