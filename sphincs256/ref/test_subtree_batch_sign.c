@@ -132,29 +132,8 @@ int test04()
   res |= crypto_context_init(context_b, &clen_b, sk, subtree_idx);
   if(res != 0) return -1;
   if(clen_a != clen_b) return -1;
-  return compare(context_a, context_b, clen_a);
-}
-
-int test05()
-{
-  unsigned char sk[CRYPTO_SECRETKEYBYTES];
-  unsigned char pk[CRYPTO_PUBLICKEYBYTES];
-
-  crypto_sign_keypair(pk, sk);
-
-  unsigned char context_a[CRYPTO_CONTEXTBYTES];
-  unsigned long long clen_a;
-  unsigned char context_b[CRYPTO_CONTEXTBYTES];
-  unsigned long long clen_b;
-
-  int res = 0;
-  res |= crypto_context_init(context_a, &clen_a, sk, -1);
-  if(res != 0) return -1;
-  res |= crypto_context_init(context_b, &clen_b, sk, -1);
-  if(res != 0) return -1;
-  if(clen_a != clen_b) return -1;
-  // Since we chose a random subtree each time, the context should not
-  // be the same.
+  // We expect the context to be different since a random seed
+  // is generated for the WOTS key pairs
   return ! compare(context_a, context_b, clen_a);
 }
 
@@ -165,8 +144,7 @@ int main(int argc, char const *argv[])
   err |= run_test(&test01, "Test SPHINCS subtree batch signing and verifying");
   err |= run_test(&test02, "Test two SPHINCS batch signatures");
   err |= run_test(&test03, "Test that invalid subtree index is rejected");
-  err |= run_test(&test04, "Test that context is deterministic with chosen subtree index");
-  err |= run_test(&test05, "Test that context is non-deterministic with random subtree index");
+  err |= run_test(&test04, "Test that context is non-deterministic with chosen subtree index");
 
   if(err)
   {
