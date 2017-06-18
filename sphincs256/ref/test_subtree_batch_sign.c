@@ -100,7 +100,7 @@ int test03()
   unsigned long long clen;
 
   // This number is exactly 1 larger than the largest valid subtree index
-  long long subtree_idx = (long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT);
+  long long subtree_idx = (long long) 1 << TOTALTREE_HEIGHT;
 
   int res = 0;
   res |= crypto_context_init(context, &clen, sk, subtree_idx);
