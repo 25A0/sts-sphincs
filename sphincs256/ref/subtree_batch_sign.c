@@ -266,6 +266,7 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // Store the used leaf idx in the signature
   memcpy(sigp, (unsigned char*) &subtree_leafidx, sizeof(unsigned long));
   sigp += sizeof(unsigned long);
+  *slen += sizeof(unsigned long);
 
   // Update the context so that the next signature uses the following leafidx
   int increment_res = increment_context(context_bytes);
