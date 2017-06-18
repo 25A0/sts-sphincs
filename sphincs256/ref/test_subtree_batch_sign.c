@@ -83,8 +83,8 @@ int test02()
   if(!eq) return -2;
 
   // Both signatures should verify
-  res |= crypto_sign_open(message, &mlen, sm1, slen1, pk);
-  res |= crypto_sign_open(message, &mlen, sm2, slen2, pk) << 1;
+  res |= crypto_sign_open_full(message, &mlen, sm1, slen1, pk);
+  res |= crypto_sign_open_full(message, &mlen, sm2, slen2, pk) << 1;
 
   return res;
 }
