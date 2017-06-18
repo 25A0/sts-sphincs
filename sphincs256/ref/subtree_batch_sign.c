@@ -316,11 +316,13 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
 /* Restores the root of the short-time subtree from message m and signature sig
  */
 int restore_subtree_root(unsigned char *m, unsigned long long *mlen,
-                         const unsigned char* sigp, unsigned long long slen,
+                         const unsigned char* sig, unsigned long long slen,
                          unsigned long long leafidx,
                          const unsigned char* public_seed,
                          unsigned char* level_0_hash)
 {
+  const unsigned char* sigp = sig;
+
   // Read the used leaf idx from the signature
   unsigned long subtree_leafidx = *((unsigned long*) sigp);
   sigp += sizeof(unsigned long);
@@ -356,6 +358,8 @@ int restore_subtree_root(unsigned char *m, unsigned long long *mlen,
   sigp += HASH_BYTES * STS_SUBTREE_HEIGHT;
   slen -= HASH_BYTES * STS_SUBTREE_HEIGHT;
 
+  assert(slen == 0);
+
   return 0;
 }
 
@@ -373,9 +377,18 @@ int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
   // Restore the root of the short-time subtree
   unsigned char restored_subtree_root[HASH_BYTES];
   const unsigned char* public_seed = get_public_seed_from_pk(pk);
-  int res =  restore_subtree_root(m, mlen, sigp, smlen, leafidx, public_seed,
-                                  restored_subtree_root);
+
+  // The number of bytes that can be consumed by restore_subtree_root.
+  unsigned long long subtree_slen = sizeof(unsigned long) + WOTS_SIGBYTES +
+                                    HASH_BYTES * STS_SUBTREE_HEIGHT;
+
+  int res =  restore_subtree_root(m, mlen, sigp, subtree_slen, leafidx,
+                                  public_seed, restored_subtree_root);
   if(res) return res;
+
+  // Move the signature pointer by the number of bytes that were consumed
+  // by restore_subtree_root.
+  sigp += subtree_slen;
 
   // Verify the root of the short-time subtree by restoring the root of the
   // SPHINCS tree with the rest of the signature
