@@ -2,6 +2,7 @@
 #define TREE
 
 #include "params.h"
+#include "wots.h"
 #include "hash_address.h"
 
 
@@ -14,10 +15,22 @@ void l_tree(unsigned char *leaf,
             unsigned char *address,
             const unsigned char *public_seed);
 
+void l_tree_conf(unsigned char *leaf,
+                 unsigned char *wots_pk,
+                 unsigned char *address,
+                 const unsigned char *public_seed,
+                 struct wots_config config);
+
 void gen_leaf_wots(unsigned char leaf[HASH_BYTES],
                    const unsigned char *sk,
                    unsigned char *address,
                    const unsigned char *public_seed);
+
+void gen_leaf_wots_conf(unsigned char leaf[HASH_BYTES],
+                        const unsigned char *sk,
+                        unsigned char *address,
+                        const unsigned char *public_seed,
+                        struct wots_config config);
 
 void treehash(unsigned char *node,
               int height,
