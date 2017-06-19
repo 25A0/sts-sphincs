@@ -18,7 +18,6 @@ typedef uint8_t TSUBTREE_IDX;
 #define CRYPTO_DETERMINISTIC 1
 
 #define CRYPTO_CONTEXTBYTES (SEED_BYTES + sizeof(TSUBTREE_IDX) +        \
-                             MESSAGE_HASH_SEED_BYTES +                  \
                              (TOTALTREE_HEIGHT+7)/8 +                   \
                              HORST_SIGBYTES +                           \
                              N_LEVELS * WOTS_SIGBYTES +                 \

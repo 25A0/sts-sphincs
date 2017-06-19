@@ -23,10 +23,6 @@ struct batch_context{
   // message
   TSUBTREE_IDX* next_subtree_leafidx;
 
-  // The seed that was used to produce the message hash that is signed
-  // with HORST
-  unsigned char* message_hash_seed;
-
   // The leaf index that is parent to the short-time subtree
   unsigned long long* leafidx;
 
@@ -48,9 +44,6 @@ const struct batch_context init_batch_context(unsigned char *bytes) {
 
   context.next_subtree_leafidx = (TSUBTREE_IDX*) (bytes + offset);
   offset += sizeof(TSUBTREE_IDX);
-
-  context.message_hash_seed = bytes + offset;
-  offset += MESSAGE_HASH_SEED_BYTES;
 
   context.leafidx = (unsigned long long*) (bytes + offset);
   offset += (TOTALTREE_HEIGHT+7)/8;
@@ -176,28 +169,8 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
   unsigned char seed[SEED_BYTES];
   get_seed(seed, sk, addr_bytes);
 
-  // The message hash seed depends on the seed in the secret key, and the seed
-  // that determines the WOTS keypairs in the short-time subtree. Note that the
-  // WOTS keypairs in the short-time subtree depend on the leaf index that
-  // holds the short-time subtree.
-  unsigned int msg_hash_seed_input_size = SK_RAND_SEED_BYTES + SEED_BYTES;
-  unsigned char msg_hash_seed_input[msg_hash_seed_input_size];
-  memcpy(msg_hash_seed_input                     , sk, SK_RAND_SEED_BYTES);
-  memcpy(msg_hash_seed_input + SK_RAND_SEED_BYTES, seed, SEED_BYTES);
-
-  unsigned int msg_hash_input_size = MESSAGE_HASH_SEED_BYTES + HASH_BYTES;
-  unsigned char msg_hash_input[msg_hash_input_size];
-
-#if MESSAGE_HASH_SEED_BYTES != HASH_BYTES
-#error "Only implemented for MESSAGE_HASH_SEED_BYTES == HASH_BYTES"
-#endif
-  varlen_hash(msg_hash_input, msg_hash_seed_input, msg_hash_seed_input_size);
-  memcpy(context.message_hash_seed, msg_hash_input, MESSAGE_HASH_SEED_BYTES);
-
-  memcpy(msg_hash_input + MESSAGE_HASH_SEED_BYTES, root, HASH_BYTES);
-
   unsigned char m_h[MSGHASH_BYTES];
-  msg_hash(m_h, msg_hash_input, msg_hash_input_size);
+  msg_hash(m_h, root, HASH_BYTES);
 
   unsigned char horst_root[HASH_BYTES];
   horst_sign(context.horst_signature, horst_root, &horst_sigbytes, seed,
@@ -234,11 +207,11 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
   if(res) {
     return res;
   }
+  assert(*slen == sizeof(unsigned long) + MESSAGE_HASH_SEED_BYTES +
+         WOTS_SIGBYTES + STS_SUBTREE_HEIGHT*HASH_BYTES);
   sigp += *slen;
 
   // Copy the remaining SPHINCS signature to the signature buffer
-  memcpy(sigp, context.message_hash_seed, MESSAGE_HASH_SEED_BYTES);
-  sigp += MESSAGE_HASH_SEED_BYTES;
 
   memcpy(sigp, context.horst_signature, HORST_SIGBYTES);
   sigp += HORST_SIGBYTES;
@@ -274,12 +247,6 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
     return increment_res;
   }
 
-  // Sign the message with the WOTS secret key at the given leafidx of the
-  // short-time subtree
-  // Hash the message to HASH_BYTES
-  unsigned char msg_hash[HASH_BYTES];
-  varlen_hash(msg_hash, m, mlen);
-
   // Generate an address for this subtree
   unsigned char addr_bytes[ADDR_BYTES];
   zerobytes(addr_bytes, ADDR_BYTES);
@@ -293,9 +260,40 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // Note that the WOTS seed is generated from the seed stored in the short-time
   // context, and not from the secret key.
   get_seed(seed, context.subtree_sk_seed, addr_bytes);
+
+  // The message hash seed depends on the seed in the secret key, and the seed
+  // that determines the WOTS keypairs in the short-time subtree. Note that the
+  // WOTS keypairs in the short-time subtree depend on the leaf index that
+  // holds the short-time subtree.
+  unsigned int msg_hash_seed_input_size = SK_RAND_SEED_BYTES + SEED_BYTES;
+  unsigned char msg_hash_seed_input[msg_hash_seed_input_size];
+  memcpy(msg_hash_seed_input                     , sk, SK_RAND_SEED_BYTES);
+  memcpy(msg_hash_seed_input + SK_RAND_SEED_BYTES, seed, SEED_BYTES);
+
+  unsigned int msg_hash_input_size = MESSAGE_HASH_SEED_BYTES + mlen;
+  unsigned char msg_hash_input[msg_hash_input_size];
+
+#if MESSAGE_HASH_SEED_BYTES != HASH_BYTES
+#error "Only implemented for MESSAGE_HASH_SEED_BYTES == HASH_BYTES"
+#endif
+  varlen_hash(msg_hash_input, msg_hash_seed_input, msg_hash_seed_input_size);
+  memcpy(sigp, msg_hash_input, MESSAGE_HASH_SEED_BYTES);
+  sigp += MESSAGE_HASH_SEED_BYTES;
+  *slen += MESSAGE_HASH_SEED_BYTES;
+
+  memcpy(msg_hash_input + MESSAGE_HASH_SEED_BYTES, m, mlen);
+
+  unsigned char m_h[MSGHASH_BYTES];
+  zerobytes(m_h, MSGHASH_BYTES);
+  msg_hash(m_h, msg_hash_input, msg_hash_input_size);
+  // TODO: currently, WOTS will only use the first 32 bytes of the 64 byte hash
+
+  // Sign the message with the WOTS secret key at the given leafidx of the
+  // short-time subtree
+
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
 
-  wots_sign(sigp, msg_hash, seed, public_seed, addr_bytes);
+  wots_sign(sigp, m_h, seed, public_seed, addr_bytes);
   sigp += WOTS_SIGBYTES;
   *slen += WOTS_SIGBYTES;
 
@@ -304,7 +302,7 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // secret key. This is so that WOTS key pairs can be generated based on
   // that seed, rather than the secret key. Otherwise the key pairs
   // would be the same for each short-time state.
-  compute_authpath_wots(msg_hash, sigp, addr_bytes, context.subtree_sk_seed,
+  compute_authpath_wots(m_h, sigp, addr_bytes, context.subtree_sk_seed,
                         STS_SUBTREE_HEIGHT,
                         public_seed);
   sigp += STS_SUBTREE_HEIGHT*HASH_BYTES;
@@ -328,9 +326,19 @@ int restore_subtree_root(unsigned char *m, unsigned long long *mlen,
   sigp += sizeof(unsigned long);
   slen -= sizeof(unsigned long);
 
-  // Hash the message to HASH_BYTES
-  unsigned char msg_hash[HASH_BYTES];
-  varlen_hash(msg_hash, m, *mlen);
+  unsigned int msg_hash_input_size = MESSAGE_HASH_SEED_BYTES + *mlen;
+  unsigned char msg_hash_input[msg_hash_input_size];
+
+  memcpy(msg_hash_input, sigp, MESSAGE_HASH_SEED_BYTES);
+  sigp += MESSAGE_HASH_SEED_BYTES;
+  slen -= MESSAGE_HASH_SEED_BYTES;
+
+  memcpy(msg_hash_input + MESSAGE_HASH_SEED_BYTES, m, *mlen);
+
+  unsigned char m_h[MSGHASH_BYTES];
+  zerobytes(m_h, MSGHASH_BYTES);
+  msg_hash(m_h, msg_hash_input, msg_hash_input_size);
+  // TODO: currently, WOTS will only use the first 32 bytes of the 64 byte hash
 
   // Generate an address for this subtree
   unsigned char addr_bytes[ADDR_BYTES];
@@ -344,7 +352,7 @@ int restore_subtree_root(unsigned char *m, unsigned long long *mlen,
   // The public key components will be stored in this buffer
   unsigned char wots_pk[WOTS_L * HASH_BYTES];
 
-  wots_verify(wots_pk, sigp, msg_hash, public_seed, addr_bytes);
+  wots_verify(wots_pk, sigp, m_h, public_seed, addr_bytes);
   sigp += WOTS_SIGBYTES;
   slen -= WOTS_SIGBYTES;
 
@@ -379,7 +387,9 @@ int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
   const unsigned char* public_seed = get_public_seed_from_pk(pk);
 
   // The number of bytes that can be consumed by restore_subtree_root.
-  unsigned long long subtree_slen = sizeof(unsigned long) + WOTS_SIGBYTES +
+  unsigned long long subtree_slen = sizeof(unsigned long) +
+                                    MESSAGE_HASH_SEED_BYTES +
+                                    WOTS_SIGBYTES +
                                     HASH_BYTES * STS_SUBTREE_HEIGHT;
 
   int res =  restore_subtree_root(m, mlen, sigp, subtree_slen, leafidx,
@@ -392,19 +402,8 @@ int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
 
   // Verify the root of the short-time subtree by restoring the root of the
   // SPHINCS tree with the rest of the signature
-  unsigned int msg_hash_input_size = MESSAGE_HASH_SEED_BYTES + HASH_BYTES;
-  unsigned char msg_hash_input[msg_hash_input_size];
-
-  const unsigned char* message_hash_seed = sigp;
-  sigp += MESSAGE_HASH_SEED_BYTES;
-  smlen -= MESSAGE_HASH_SEED_BYTES;
-
-  memcpy(msg_hash_input, message_hash_seed, MESSAGE_HASH_SEED_BYTES);
-  memcpy(msg_hash_input + MESSAGE_HASH_SEED_BYTES,
-         restored_subtree_root, HASH_BYTES);
-
   unsigned char message_hash[MSGHASH_BYTES];
-  msg_hash(message_hash, msg_hash_input, msg_hash_input_size);
+  msg_hash(message_hash, restored_subtree_root, HASH_BYTES);
 
   // Generate an address for this subtree
   unsigned char addr_bytes[ADDR_BYTES];
