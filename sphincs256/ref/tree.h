@@ -38,6 +38,13 @@ void treehash(unsigned char *node,
               unsigned char *address,
               const unsigned char *public_seed);
 
+void treehash_conf(unsigned char *node,
+                   int height,
+                   const unsigned char *sk,
+                   unsigned char *subtree_address,
+                   const unsigned char *public_seed,
+                   struct wots_config config);
+
 void validate_authpath(unsigned char root[HASH_BYTES],
                        const unsigned char leaf[HASH_BYTES],
                        unsigned char *address,
@@ -51,6 +58,14 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
                            const unsigned char *sk,
                            unsigned int height,
                            const unsigned char *public_seed);
+
+void compute_authpath_wots_conf(unsigned char root[HASH_BYTES],
+                                unsigned char *authpath,
+                                unsigned char *address,
+                                const unsigned char *sk,
+                                unsigned int height,
+                                const unsigned char *public_seed,
+                                struct wots_config config);
 
 /* Signs the first HASH_BYTES bytes of leaf with the given secret key sk.
  * num_levels determines how many layers will be signed. The start and end

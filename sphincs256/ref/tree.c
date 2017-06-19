@@ -115,7 +115,7 @@ void gen_leaf_wots_conf(unsigned char leaf[HASH_BYTES],
                         struct wots_config config)
 {
   unsigned char seed[SEED_BYTES];
-  unsigned char pk[WOTS_L*HASH_BYTES];
+  unsigned char pk[config.wots_l*HASH_BYTES];
 
   get_seed(seed, sk, addr);
   wots_pkgen_conf(pk, seed, public_seed, addr, config);
@@ -129,6 +129,17 @@ void treehash(unsigned char *node,
               const unsigned char *sk,
               unsigned char *subtree_address,
               const unsigned char *public_seed)
+{
+  treehash_conf(node, height, sk, subtree_address, public_seed,
+                default_wots_config);
+}
+
+void treehash_conf(unsigned char *node,
+                   int height,
+                   const unsigned char *sk,
+                   unsigned char *subtree_address,
+                   const unsigned char *public_seed,
+                   struct wots_config config)
 {
 
   int i, layer;
@@ -145,7 +156,8 @@ void treehash(unsigned char *node,
   for( ; subtree_node < lastnode; subtree_node++)
   {
     *addr.subtree_node = subtree_node;
-    gen_leaf_wots(stack+stackoffset*HASH_BYTES, sk, address, public_seed);
+    gen_leaf_wots_conf(stack+stackoffset*HASH_BYTES, sk, address, public_seed,
+                       config);
 
     stacklevels[stackoffset] = 0;
     stackoffset++;
@@ -242,6 +254,18 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
                            unsigned int height,
                            const unsigned char *public_seed)
 {
+  compute_authpath_wots_conf(root, authpath, address, sk, height, public_seed,
+                             default_wots_config);
+}
+
+void compute_authpath_wots_conf(unsigned char root[HASH_BYTES],
+                                unsigned char *authpath,
+                                unsigned char *address,
+                                const unsigned char *sk,
+                                unsigned int height,
+                                const unsigned char *public_seed,
+                                struct wots_config config)
+{
   int i, idx, j;
   struct hash_addr addr = init_hash_addr(address);
   // The index of the node that will be authenticated with the auth path
@@ -249,7 +273,7 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
 
   unsigned char tree[2*(1<<SUBTREE_HEIGHT)*HASH_BYTES];
   unsigned char seed[(1<<SUBTREE_HEIGHT)*SEED_BYTES];
-  unsigned char pk[(1<<SUBTREE_HEIGHT)*WOTS_L*HASH_BYTES];
+  unsigned char pk[(1<<SUBTREE_HEIGHT)*config.wots_l*HASH_BYTES];
 
   // level 0
   for(i = 0; i < (1<<SUBTREE_HEIGHT); i++) {
@@ -259,7 +283,7 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
 
   for(i = 0; i < (1<<SUBTREE_HEIGHT); i++) {
     *addr.subtree_node = i;
-    wots_pkgen(pk + i * WOTS_L*HASH_BYTES,
+    wots_pkgen(pk + i * config.wots_l*HASH_BYTES,
                seed + i * SEED_BYTES,
                public_seed,
                address);
@@ -268,7 +292,7 @@ void compute_authpath_wots(unsigned char root[HASH_BYTES],
   for(i = 0; i < (1<<SUBTREE_HEIGHT); i++) {
     *addr.subtree_node = i;
     l_tree(tree + (1<<SUBTREE_HEIGHT)*HASH_BYTES + i * HASH_BYTES,
-           pk  + i * WOTS_L*HASH_BYTES,
+           pk  + i * config.wots_l*HASH_BYTES,
            address,
            public_seed);
   }
