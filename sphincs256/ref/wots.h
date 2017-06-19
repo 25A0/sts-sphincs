@@ -18,6 +18,9 @@ struct wots_config {
   unsigned int wots_sigbytes;
 };
 
+// Declaration for a struct containing the default configuration
+extern struct wots_config default_wots_config;
+
 // Generate key pair using default configuration
 void wots_pkgen(unsigned char pk[WOTS_L*HASH_BYTES],
                 const unsigned char sk[SEED_BYTES],

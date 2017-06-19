@@ -5,9 +5,9 @@
 #include "assert.h"
 #include "wots.h"
 
-// A struct containing the default configuration
-const struct wots_config default_wots_config = {WOTS_L, WOTS_L1, WOTS_LOG_L,
-                                                WOTS_SIGBYTES};
+// Initialize default WOTS configuration
+struct wots_config default_wots_config = {WOTS_L, WOTS_L1, WOTS_LOG_L,
+                                          WOTS_SIGBYTES};
 
 static void expand_seed(unsigned char out[WOTS_L*HASH_BYTES],
                         const unsigned char sk[SEED_BYTES],
