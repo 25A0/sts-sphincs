@@ -101,7 +101,7 @@ void wots_sign(unsigned char sig[WOTS_L*HASH_BYTES],
   wots_sign_conf(sig, msg, sk, seed, addr, default_wots_config);
 }
 
-void wots_sign_conf(unsigned char sig[WOTS_L*HASH_BYTES],
+void wots_sign_conf(unsigned char* sig,
                     const unsigned char msg[HASH_BYTES],
                     const unsigned char sk[SEED_BYTES],
                     const unsigned char seed[PUBLIC_SEED_BYTES],
@@ -174,8 +174,8 @@ void wots_verify(unsigned char pk[WOTS_L*HASH_BYTES],
   wots_verify_conf(pk, sig, msg, seed, addr, default_wots_config);
 }
 
-void wots_verify_conf(unsigned char pk[WOTS_L*HASH_BYTES],
-                      const unsigned char sig[WOTS_L*HASH_BYTES],
+void wots_verify_conf(unsigned char* pk,
+                      const unsigned char* sig,
                       const unsigned char msg[HASH_BYTES],
                       const unsigned char seed[PUBLIC_SEED_BYTES],
                       unsigned char addr[ADDR_BYTES],

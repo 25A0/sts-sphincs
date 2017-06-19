@@ -59,6 +59,15 @@ const struct batch_context init_batch_context(unsigned char *bytes) {
   return context;
 }
 
+// The configuration that will be used for the WOTS signature that signs
+// the message hash. Since the message hash has 64 bytes rather than 32,
+// L and L1 need to be adapted.
+const struct wots_config sts_wots_config = { STS_WOTS_L,
+                                             STS_WOTS_L1,
+                                             STS_WOTS_LOG_L,
+                                             STS_WOTS_SIGBYTES
+};
+
 static int increment_context(unsigned char *context_bytes)
 {
   struct batch_context context = init_batch_context(context_bytes);
@@ -154,11 +163,12 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
   // Build the root of the short-time subtree
   unsigned char root[HASH_BYTES];
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
-  treehash(root,
-           STS_SUBTREE_HEIGHT,
-           context.subtree_sk_seed,
-           addr_bytes,
-           public_seed);
+  treehash_conf(root,
+                STS_SUBTREE_HEIGHT,
+                context.subtree_sk_seed,
+                addr_bytes,
+                public_seed,
+                sts_wots_config);
   // Create signature for that root at the given leafidx
   // And store that signature in the context
   *address.subtree_layer = N_LEVELS;
@@ -208,7 +218,7 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
     return res;
   }
   assert(*slen == sizeof(unsigned long) + MESSAGE_HASH_SEED_BYTES +
-         WOTS_SIGBYTES + STS_SUBTREE_HEIGHT*HASH_BYTES);
+         STS_WOTS_SIGBYTES + STS_SUBTREE_HEIGHT*HASH_BYTES);
   sigp += *slen;
 
   // Copy the remaining SPHINCS signature to the signature buffer
@@ -293,18 +303,18 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
 
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
 
-  wots_sign(sigp, m_h, seed, public_seed, addr_bytes);
-  sigp += WOTS_SIGBYTES;
-  *slen += WOTS_SIGBYTES;
+  wots_sign_conf(sigp, m_h, seed, public_seed, addr_bytes, sts_wots_config);
+  sigp += STS_WOTS_SIGBYTES;
+  *slen += STS_WOTS_SIGBYTES;
 
   // Store the authentication path of that signature in the signature buffer
   // Note that the subtree seed is passed to this function instead of the
   // secret key. This is so that WOTS key pairs can be generated based on
   // that seed, rather than the secret key. Otherwise the key pairs
   // would be the same for each short-time state.
-  compute_authpath_wots(m_h, sigp, addr_bytes, context.subtree_sk_seed,
-                        STS_SUBTREE_HEIGHT,
-                        public_seed);
+  compute_authpath_wots_conf(m_h, sigp, addr_bytes, context.subtree_sk_seed,
+                             STS_SUBTREE_HEIGHT,
+                             public_seed, sts_wots_config);
   sigp += STS_SUBTREE_HEIGHT*HASH_BYTES;
   *slen += STS_SUBTREE_HEIGHT*HASH_BYTES;
 
@@ -350,15 +360,15 @@ int restore_subtree_root(unsigned char *m, unsigned long long *mlen,
   *address.subtree_node = subtree_leafidx;
 
   // The public key components will be stored in this buffer
-  unsigned char wots_pk[WOTS_L * HASH_BYTES];
+  unsigned char wots_pk[sts_wots_config.wots_l * HASH_BYTES];
 
-  wots_verify(wots_pk, sigp, m_h, public_seed, addr_bytes);
-  sigp += WOTS_SIGBYTES;
-  slen -= WOTS_SIGBYTES;
+  wots_verify_conf(wots_pk, sigp, m_h, public_seed, addr_bytes, sts_wots_config);
+  sigp += STS_WOTS_SIGBYTES;
+  slen -= STS_WOTS_SIGBYTES;
 
   // Now construct an L-tree from that
   unsigned char pk_hash[HASH_BYTES];
-  l_tree(pk_hash, wots_pk, addr_bytes, public_seed);
+  l_tree_conf(pk_hash, wots_pk, addr_bytes, public_seed, sts_wots_config);
 
   // validate_authpath(root, pkhash, leafidx & 0x1f, sigp, tpk, SUBTREE_HEIGHT);
   validate_authpath(level_0_hash, pk_hash, addr_bytes, public_seed, sigp,
@@ -389,7 +399,7 @@ int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
   // The number of bytes that can be consumed by restore_subtree_root.
   unsigned long long subtree_slen = sizeof(unsigned long) +
                                     MESSAGE_HASH_SEED_BYTES +
-                                    WOTS_SIGBYTES +
+                                    STS_WOTS_SIGBYTES +
                                     HASH_BYTES * STS_SUBTREE_HEIGHT;
 
   int res =  restore_subtree_root(m, mlen, sigp, subtree_slen, leafidx,

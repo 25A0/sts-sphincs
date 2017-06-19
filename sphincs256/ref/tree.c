@@ -283,18 +283,20 @@ void compute_authpath_wots_conf(unsigned char root[HASH_BYTES],
 
   for(i = 0; i < (1<<SUBTREE_HEIGHT); i++) {
     *addr.subtree_node = i;
-    wots_pkgen(pk + i * config.wots_l*HASH_BYTES,
-               seed + i * SEED_BYTES,
-               public_seed,
-               address);
+    wots_pkgen_conf(pk + i * config.wots_l*HASH_BYTES,
+                    seed + i * SEED_BYTES,
+                    public_seed,
+                    address,
+                    config);
   }
 
   for(i = 0; i < (1<<SUBTREE_HEIGHT); i++) {
     *addr.subtree_node = i;
-    l_tree(tree + (1<<SUBTREE_HEIGHT)*HASH_BYTES + i * HASH_BYTES,
-           pk  + i * config.wots_l*HASH_BYTES,
-           address,
-           public_seed);
+    l_tree_conf(tree + (1<<SUBTREE_HEIGHT)*HASH_BYTES + i * HASH_BYTES,
+                pk  + i * config.wots_l*HASH_BYTES,
+                address,
+                public_seed,
+                config);
   }
 
   int level = 0;
