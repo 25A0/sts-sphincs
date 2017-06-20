@@ -126,14 +126,14 @@ void gen_leaf_wots_conf(unsigned char leaf[HASH_BYTES],
 
 // This function works essentially the same way the treehash function works,
 // but it also returns the public keys of the generated wots key pairs.
-void sts_tree_hash(unsigned char* node,
-                   unsigned char* wots_pks,
-                   int height,
-                   const unsigned char *sk,
-                   unsigned char *subtree_address,
-                   const unsigned char *public_seed)
+void sts_tree_hash_conf(unsigned char* node,
+                        unsigned char* wots_pks,
+                        int height,
+                        const unsigned char *sk,
+                        unsigned char *subtree_address,
+                        const unsigned char *public_seed,
+                        struct wots_config config)
 {
-  struct wots_config config = default_wots_config;
   int i, layer;
   unsigned char stack[(height+1)*HASH_BYTES];
   unsigned int  stacklevels[height+1];

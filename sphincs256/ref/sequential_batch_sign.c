@@ -147,8 +147,8 @@ int crypto_context_init(unsigned char *context_bytes, unsigned long long *clen,
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
   unsigned char level_0_hash[HASH_BYTES];
   // Compute root of lowest tree and WOTS public keys in the same pass
-  sts_tree_hash(level_0_hash, context.wots_pks, SUBTREE_HEIGHT, sk,
-                address_bytes, public_seed);
+  sts_tree_hash_conf(level_0_hash, context.wots_pks, SUBTREE_HEIGHT, sk,
+                     address_bytes, public_seed, default_wots_config);
 
   // ==============================================================
   // Write the upper N_LEVELS - 1 WOTS signatures to the context

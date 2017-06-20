@@ -23,6 +23,9 @@ struct batch_context{
   // message
   TSUBTREE_IDX* next_subtree_leafidx;
 
+  // The public keys of the WOTS key pairs in the short-time subtree
+  unsigned char* wots_kps;
+
   // The leaf index that is parent to the short-time subtree
   unsigned long long* leafidx;
 
@@ -44,6 +47,9 @@ const struct batch_context init_batch_context(unsigned char *bytes) {
 
   context.next_subtree_leafidx = (TSUBTREE_IDX*) (bytes + offset);
   offset += sizeof(TSUBTREE_IDX);
+
+  context.wots_kps = bytes + offset;
+  offset += (1 << SUBTREE_HEIGHT) * HASH_BYTES;
 
   context.leafidx = (unsigned long long*) (bytes + offset);
   offset += (TOTALTREE_HEIGHT+7)/8;
@@ -170,12 +176,13 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
   // Build the root of the short-time subtree
   unsigned char root[HASH_BYTES];
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
-  treehash_conf(root,
-                SUBTREE_HEIGHT,
-                context.subtree_sk_seed,
-                addr_bytes,
-                public_seed,
-                sts_wots_config);
+  sts_tree_hash_conf(root,
+                     context.wots_kps,
+                     SUBTREE_HEIGHT,
+                     context.subtree_sk_seed,
+                     addr_bytes,
+                     public_seed,
+                     sts_wots_config);
   // Create signature for that root at the given leafidx
   // And store that signature in the context
   *address.subtree_layer = N_LEVELS; // special layer index for HORST
@@ -318,9 +325,8 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // secret key. This is so that WOTS key pairs can be generated based on
   // that seed, rather than the secret key. Otherwise the key pairs
   // would be the same for each short-time state.
-  compute_authpath_wots_conf(m_h, sigp, addr_bytes, context.subtree_sk_seed,
-                             SUBTREE_HEIGHT,
-                             public_seed, sts_wots_config);
+  compute_authpath(m_h, sigp, addr_bytes, context.wots_kps,
+                   context.subtree_sk_seed, SUBTREE_HEIGHT, public_seed);
   sigp += SUBTREE_HEIGHT*HASH_BYTES;
   *slen += SUBTREE_HEIGHT*HASH_BYTES;
 

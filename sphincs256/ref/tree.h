@@ -32,12 +32,13 @@ void gen_leaf_wots_conf(unsigned char leaf[HASH_BYTES],
                         const unsigned char *public_seed,
                         struct wots_config config);
 
-void sts_tree_hash(unsigned char* node,
-                   unsigned char* wots_pks,
-                   int height,
-                   const unsigned char *sk,
-                   unsigned char *subtree_address,
-                   const unsigned char *public_seed);
+void sts_tree_hash_conf(unsigned char* node,
+                        unsigned char* wots_pks,
+                        int height,
+                        const unsigned char *sk,
+                        unsigned char *subtree_address,
+                        const unsigned char *public_seed,
+                        struct wots_config config);
 
 void treehash(unsigned char *node,
               int height,
