@@ -42,6 +42,9 @@ test_sequential_batch_sign.o: testutils.o test_sequential_batch_sign.c libsphinc
 bench_sequential_batch_sign.o: testutils.o bench_sequential_batch_sign.c libsphincs_sequential.a
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
+bench_subtree_batch_sign.o: testutils.o bench_subtree_batch_sign.c libsphincs_subtree.a
+	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+
 test_subtree_batch_sign.o: testutils.o test_subtree_batch_sign.c libsphincs_subtree.a
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
