@@ -1,11 +1,9 @@
 #include "params.h"
 #include <stdint.h>
 
-// Short-time state subtree height
-#define STS_SUBTREE_HEIGHT 5
 // When changing the subtree height, make sure that the type used for the
 // subtree height index is still large enough to capture all indices.
-// That is, ensure that STS_SUBTREE_HEIGHT > sizeof(TSUBTREE_IDX) * 8
+// That is, ensure that SUBTREE_HEIGHT < sizeof(TSUBTREE_IDX) * 8
 typedef uint8_t TSUBTREE_IDX;
 
 // To sign 64 Bytes with WOTS_LOGW = 4, L1 is (64 * 8)/4 = 128.
@@ -27,7 +25,7 @@ typedef uint8_t TSUBTREE_IDX;
                       STS_WOTS_SIGBYTES +                               \
                       (N_LEVELS - 1)*WOTS_SIGBYTES +                    \
                       HASH_BYTES * (TOTALTREE_HEIGHT - SUBTREE_HEIGHT + \
-                                    STS_SUBTREE_HEIGHT))
+                                    SUBTREE_HEIGHT))
 #define CRYPTO_DETERMINISTIC 1
 
 #define CRYPTO_CONTEXTBYTES (SEED_BYTES + sizeof(TSUBTREE_IDX) +        \

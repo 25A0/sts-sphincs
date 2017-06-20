@@ -81,7 +81,7 @@ static int increment_context(unsigned char *context_bytes)
 
   // Make sure that the next leafidx actually exists in the
   // short-time subtree
-  if(*context.next_subtree_leafidx < (1 << STS_SUBTREE_HEIGHT) - 1) {
+  if(*context.next_subtree_leafidx < (1 << SUBTREE_HEIGHT) - 1) {
     // Increment the leafidx that will be used for the next leaf
     (*context.next_subtree_leafidx)++;
     return 0;
@@ -171,7 +171,7 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
   unsigned char root[HASH_BYTES];
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
   treehash_conf(root,
-                STS_SUBTREE_HEIGHT,
+                SUBTREE_HEIGHT,
                 context.subtree_sk_seed,
                 addr_bytes,
                 public_seed,
@@ -222,7 +222,7 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
     return res;
   }
   assert(*slen == sizeof(unsigned long) + MESSAGE_HASH_SEED_BYTES +
-         STS_WOTS_SIGBYTES + STS_SUBTREE_HEIGHT*HASH_BYTES);
+         STS_WOTS_SIGBYTES + SUBTREE_HEIGHT*HASH_BYTES);
   sigp += *slen;
 
   // Copy the remaining SPHINCS signature to the signature buffer
@@ -319,10 +319,10 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // that seed, rather than the secret key. Otherwise the key pairs
   // would be the same for each short-time state.
   compute_authpath_wots_conf(m_h, sigp, addr_bytes, context.subtree_sk_seed,
-                             STS_SUBTREE_HEIGHT,
+                             SUBTREE_HEIGHT,
                              public_seed, sts_wots_config);
-  sigp += STS_SUBTREE_HEIGHT*HASH_BYTES;
-  *slen += STS_SUBTREE_HEIGHT*HASH_BYTES;
+  sigp += SUBTREE_HEIGHT*HASH_BYTES;
+  *slen += SUBTREE_HEIGHT*HASH_BYTES;
 
   return 0;
 }
@@ -378,9 +378,9 @@ int restore_subtree_root(unsigned char *m, unsigned long long *mlen,
 
   // validate_authpath(root, pkhash, leafidx & 0x1f, sigp, tpk, SUBTREE_HEIGHT);
   validate_authpath(level_0_hash, pk_hash, addr_bytes, public_seed, sigp,
-                    STS_SUBTREE_HEIGHT);
-  sigp += HASH_BYTES * STS_SUBTREE_HEIGHT;
-  slen -= HASH_BYTES * STS_SUBTREE_HEIGHT;
+                    SUBTREE_HEIGHT);
+  sigp += HASH_BYTES * SUBTREE_HEIGHT;
+  slen -= HASH_BYTES * SUBTREE_HEIGHT;
 
   assert(slen == 0);
 
@@ -406,7 +406,7 @@ int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
   unsigned long long subtree_slen = sizeof(unsigned long) +
                                     MESSAGE_HASH_SEED_BYTES +
                                     STS_WOTS_SIGBYTES +
-                                    HASH_BYTES * STS_SUBTREE_HEIGHT;
+                                    HASH_BYTES * SUBTREE_HEIGHT;
 
   int res =  restore_subtree_root(m, mlen, sigp, subtree_slen, leafidx,
                                   public_seed, restored_subtree_root);
