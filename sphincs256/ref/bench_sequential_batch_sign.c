@@ -28,6 +28,11 @@ int bench()
   unsigned char message[mlen + CRYPTO_BYTES];
   randombytes(message, mlen);
 
+  printf("crypto_secretkeybytes: %d\n", CRYPTO_SECRETKEYBYTES);
+  printf("crypto_publickeybytes: %d\n", CRYPTO_PUBLICKEYBYTES);
+  printf("crypto_contextbytes:   %d\n", CRYPTO_CONTEXTBYTES);
+  printf("crypto_bytes:          %d\n", CRYPTO_BYTES);
+
   {
     unsigned long start = GetCC();
     crypto_sign_keypair(pk, sk);
