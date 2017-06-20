@@ -81,7 +81,7 @@ static int increment_context(unsigned char *context_bytes)
 
   // Make sure that the next leafidx actually exists in the
   // short-time subtree
-  if(*context.next_subtree_leafidx < (1 << SUBTREE_HEIGHT) - 1) {
+  if(*context.next_subtree_leafidx < (1 << SUBTREE_HEIGHT)) {
     // Increment the leafidx that will be used for the next leaf
     (*context.next_subtree_leafidx)++;
     return 0;
