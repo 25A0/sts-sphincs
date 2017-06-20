@@ -71,5 +71,7 @@ test: ${TESTS}
 	done; true
 
 bench: ${BENCHS}
-	time -p sh -c "./bench_speed.o 1 10"
-	time -p sh -c "./bench_speed.o 2 10"
+	-@for bench in ${BENCHS}; do \
+		echo $${bench}; \
+		./$${bench} || echo "${BOLD}$${bench} ${RED}FAILED${NORMAL}"; \
+	done; true
