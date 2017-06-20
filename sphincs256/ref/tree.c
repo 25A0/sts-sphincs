@@ -124,6 +124,61 @@ void gen_leaf_wots_conf(unsigned char leaf[HASH_BYTES],
 }
 
 
+// This function works essentially the same way the treehash function works,
+// but it also returns the public keys of the generated wots key pairs.
+void sts_tree_hash(unsigned char* node,
+                   unsigned char* wots_pks,
+                   int height,
+                   const unsigned char *sk,
+                   unsigned char *subtree_address,
+                   const unsigned char *public_seed)
+{
+  struct wots_config config = default_wots_config;
+  int i, layer;
+  unsigned char stack[(height+1)*HASH_BYTES];
+  unsigned int  stacklevels[height+1];
+  unsigned int  stackoffset=0;
+  unsigned char address[ADDR_BYTES];
+  memcpy(address, subtree_address, ADDR_BYTES);
+
+  struct hash_addr addr = init_hash_addr(address);
+  uint32_t subtree_node = 0;
+  uint32_t lastnode = subtree_node + (1<<height);
+
+  for( ; subtree_node < lastnode; subtree_node++)
+  {
+    *addr.subtree_node = subtree_node;
+    gen_leaf_wots_conf(stack+stackoffset*HASH_BYTES, sk, address, public_seed,
+                       config);
+    // Copy generated WOTS pk to wots_pks
+    memcpy(wots_pks, stack+stackoffset * HASH_BYTES, HASH_BYTES);
+    wots_pks += HASH_BYTES;
+
+    stacklevels[stackoffset] = 0;
+    stackoffset++;
+
+    while(stackoffset>1 && stacklevels[stackoffset-1] == stacklevels[stackoffset-2])
+    {
+
+      // the layer of the node that we calculate:
+      layer = stacklevels[stackoffset-1]+1;
+      // the index of the node in that layer is the current subtree_node,
+      // shifted to the right by the height of the current layer.
+      *addr.subtree_node = node_index(height, layer, subtree_node >> layer);
+      set_type(address, SPHINCS_ADDR);
+
+      hash_nodes(stack+(stackoffset-2)*HASH_BYTES,
+                 stack+(stackoffset-2)*HASH_BYTES,
+                 address,
+                 public_seed);
+      stacklevels[stackoffset-2]++;
+      stackoffset--;
+    }
+  }
+  for(i=0;i<HASH_BYTES;i++)
+    node[i] = stack[i];
+}
+
 void treehash(unsigned char *node,
               int height,
               const unsigned char *sk,
@@ -299,6 +354,58 @@ void compute_authpath_wots_conf(unsigned char root[HASH_BYTES],
                 config);
   }
 
+  int level = 0;
+
+  set_type(address, SPHINCS_ADDR);
+
+  // tree
+  for (i = (1<<SUBTREE_HEIGHT); i > 0; i>>=1)
+  {
+    for (j = 0; j < i; j+=2) {
+      *addr.subtree_node = node_index(height, level+1, j >> 1);
+      hash_nodes(tree + (i>>1)*HASH_BYTES + (j>>1) * HASH_BYTES,
+                 tree + i*HASH_BYTES + j * HASH_BYTES,
+                 address,
+                 public_seed);
+    }
+
+    level++;
+  }
+
+
+  idx = node;
+
+  // copy authpath
+  for(i=0;i<height;i++)
+    memcpy(authpath + i*HASH_BYTES, tree + ((1<<SUBTREE_HEIGHT)>>i)*HASH_BYTES + ((idx >> i) ^ 1) * HASH_BYTES, HASH_BYTES);
+
+  // copy root
+  memcpy(root, tree+HASH_BYTES, HASH_BYTES);
+
+  // reset sphincs node address
+  *addr.subtree_node = idx;
+}
+
+// Computes the auth path for a binary tree with the given leaves.
+// If height is h, then this function expects (1<<h) hashes in leaves.
+// Stores the root of the binary tree in root, and the auth path in
+// authpath.
+void compute_authpath(unsigned char root[HASH_BYTES],
+                      unsigned char *authpath,
+                      unsigned char *address,
+                      const unsigned char* leaves,
+                      const unsigned char *sk,
+                      unsigned int height,
+                      const unsigned char *public_seed)
+{
+  int i, idx, j;
+  struct hash_addr addr = init_hash_addr(address);
+  // The index of the node that will be authenticated with the auth path
+  int node = *addr.subtree_node;
+
+  unsigned char tree[2*(1<<SUBTREE_HEIGHT)*HASH_BYTES];
+  zerobytes(tree, 2*(1<<SUBTREE_HEIGHT)*HASH_BYTES);
+  memcpy(tree + (1<<SUBTREE_HEIGHT) * HASH_BYTES, leaves, (1<<height) * HASH_BYTES);
   int level = 0;
 
   set_type(address, SPHINCS_ADDR);

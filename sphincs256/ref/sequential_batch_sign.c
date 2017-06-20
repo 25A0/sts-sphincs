@@ -26,6 +26,9 @@ struct batch_context{
   // The leaf index that should be used for the next signature
   unsigned long long* next_leafidx;
 
+  // The public keys of the WOTS key pairs. Cached to speed up signing.
+  unsigned char* wots_pks;
+
   // The N_LEVELS-1 WOTS signatures that sign the hash of the subtree on level
   // 0 under the key pair that was used to generate this context
   unsigned char* signatures;
@@ -37,6 +40,9 @@ const struct batch_context init_batch_context(unsigned char* bytes) {
 
   context.next_leafidx = (unsigned long long*) bytes + offset;
   offset += (TOTALTREE_HEIGHT+7)/8;
+
+  context.wots_pks = bytes + offset;
+  offset += (1 << SUBTREE_HEIGHT) * HASH_BYTES;
 
   context.signatures = bytes + offset;
 
@@ -140,7 +146,9 @@ int crypto_context_init(unsigned char *context_bytes, unsigned long long *clen,
 
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
   unsigned char level_0_hash[HASH_BYTES];
-  treehash(level_0_hash, SUBTREE_HEIGHT, sk, address_bytes, public_seed);
+  // Compute root of lowest tree and WOTS public keys in the same pass
+  sts_tree_hash(level_0_hash, context.wots_pks, SUBTREE_HEIGHT, sk,
+                address_bytes, public_seed);
 
   // ==============================================================
   // Write the upper N_LEVELS - 1 WOTS signatures to the context
@@ -298,7 +306,20 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // Create WOTS signature for lvl 0
   // ==============================================================
   *address.subtree_layer = 0;
-  sign_leaf(root, 1, sig.wots_signatures, slen, tsk, address_bytes);
+  get_seed(seed, sk, address_bytes);
+
+  wots_sign(sig_bytes, root, seed, public_seed, address_bytes);
+  sig_bytes += WOTS_SIGBYTES;
+  *slen += WOTS_SIGBYTES;
+
+  compute_authpath(root, sig_bytes,address_bytes, context.wots_pks, sk,
+                   SUBTREE_HEIGHT, public_seed);
+
+  sig_bytes += SUBTREE_HEIGHT*HASH_BYTES;
+  *slen += SUBTREE_HEIGHT*HASH_BYTES;
+
+  parent(SUBTREE_HEIGHT, address);
+  // sign_leaf(root, 1, sig.wots_signatures, slen, tsk, address_bytes);
 
   // ==============================================================
   // The verifier already has a copy of the rest of the signature
