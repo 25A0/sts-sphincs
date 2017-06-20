@@ -15,11 +15,15 @@ typedef uint8_t TSUBTREE_IDX;
 #define STS_WOTS_LOG_L   7
 #define STS_WOTS_SIGBYTES (STS_WOTS_L * HASH_BYTES)
 
+#define STS_HORST_K 16
+#define STS_HORST_SIGBYTES (64*HASH_BYTES+(((HORST_LOGT-6)*HASH_BYTES)+\
+                                           HORST_SKBYTES)*STS_HORST_K)
+
 #define CRYPTO_SECRETKEYBYTES (SEED_BYTES + PUBLIC_SEED_BYTES + \
                                SK_RAND_SEED_BYTES)
 #define CRYPTO_PUBLICKEYBYTES (HASH_BYTES + PUBLIC_SEED_BYTES)
 #define CRYPTO_BYTES (MESSAGE_HASH_SEED_BYTES + (TOTALTREE_HEIGHT+7)/8 + \
-                      HORST_SIGBYTES +                                  \
+                      STS_HORST_SIGBYTES +                                  \
                       STS_WOTS_SIGBYTES +                               \
                       (N_LEVELS)*WOTS_SIGBYTES +                        \
                       (TOTALTREE_HEIGHT + STS_SUBTREE_HEIGHT)*HASH_BYTES)
@@ -27,6 +31,6 @@ typedef uint8_t TSUBTREE_IDX;
 
 #define CRYPTO_CONTEXTBYTES (SEED_BYTES + sizeof(TSUBTREE_IDX) +        \
                              (TOTALTREE_HEIGHT+7)/8 +                   \
-                             HORST_SIGBYTES +                           \
+                             STS_HORST_SIGBYTES +                           \
                              N_LEVELS * WOTS_SIGBYTES +                 \
                              TOTALTREE_HEIGHT * HASH_BYTES)

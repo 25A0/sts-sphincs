@@ -49,7 +49,7 @@ const struct batch_context init_batch_context(unsigned char *bytes) {
   offset += (TOTALTREE_HEIGHT+7)/8;
 
   context.horst_signature = bytes + offset;
-  offset += HORST_SIGBYTES;
+  offset += STS_HORST_SIGBYTES;
 
   context.wots_signatures = bytes + offset;
   offset += N_LEVELS * WOTS_SIGBYTES + TOTALTREE_HEIGHT * HASH_BYTES;
@@ -67,6 +67,12 @@ const struct wots_config sts_wots_config = { STS_WOTS_L,
                                              STS_WOTS_LOG_L,
                                              STS_WOTS_SIGBYTES
 };
+
+// The configuration that will be used for the HORST signature that signs
+// the root of the short-time subtree. Since that root only has 32 bytes,
+// HORST can be used with k=16 instead of 32, which reduces the signature size
+// and speeds up signing and verification.
+const struct horst_config sts_horst_config = {STS_HORST_K, STS_HORST_SIGBYTES};
 
 static int increment_context(unsigned char *context_bytes)
 {
@@ -179,12 +185,9 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
   unsigned char seed[SEED_BYTES];
   get_seed(seed, sk, addr_bytes);
 
-  unsigned char m_h[MSGHASH_BYTES];
-  msg_hash(m_h, root, HASH_BYTES);
-
   unsigned char horst_root[HASH_BYTES];
-  horst_sign(context.horst_signature, horst_root, &horst_sigbytes, seed,
-             addr_bytes, m_h, MSGHASH_BYTES);
+  horst_sign_conf(context.horst_signature, horst_root, &horst_sigbytes, seed,
+                  addr_bytes, root, HASH_BYTES, sts_horst_config);
 
   *address.subtree_layer = 0;
   *clen = 0;
@@ -223,8 +226,8 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
 
   // Copy the remaining SPHINCS signature to the signature buffer
 
-  memcpy(sigp, context.horst_signature, HORST_SIGBYTES);
-  sigp += HORST_SIGBYTES;
+  memcpy(sigp, context.horst_signature, sts_horst_config.horst_sigbytes);
+  sigp += sts_horst_config.horst_sigbytes;
 
   memcpy(sigp, context.wots_signatures,
          N_LEVELS*WOTS_SIGBYTES + TOTALTREE_HEIGHT*HASH_BYTES);
@@ -412,8 +415,6 @@ int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
 
   // Verify the root of the short-time subtree by restoring the root of the
   // SPHINCS tree with the rest of the signature
-  unsigned char message_hash[MSGHASH_BYTES];
-  msg_hash(message_hash, restored_subtree_root, HASH_BYTES);
 
   // Generate an address for this subtree
   unsigned char addr_bytes[ADDR_BYTES];
@@ -426,13 +427,14 @@ int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
 
   // Restore the HORST public key
   unsigned char leaf[HASH_BYTES];
-  res = horst_verify(leaf,
-                     sigp,
-                     addr_bytes,
-                     message_hash, MSGHASH_BYTES);
+  res = horst_verify_conf(leaf,
+                          sigp,
+                          addr_bytes,
+                          restored_subtree_root, HASH_BYTES,
+                          sts_horst_config);
   if(res) return res;
-  sigp += HORST_SIGBYTES;
-  smlen -= HORST_SIGBYTES;
+  sigp += sts_horst_config.horst_sigbytes;
+  smlen -= sts_horst_config.horst_sigbytes;
 
   *address.subtree_layer = 0;
 
