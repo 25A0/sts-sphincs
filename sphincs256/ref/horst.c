@@ -5,21 +5,39 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "hash_address.h"
+#include <assert.h>
 
-static void expand_seed(unsigned char outseeds[HORST_T*HORST_SKBYTES], const unsigned char inseed[SEED_BYTES])
+struct horst_config default_horst_config = {HORST_K, HORST_SIGBYTES};
+
+static void expand_seed(unsigned char outseeds[HORST_T*HORST_SKBYTES],
+                        const unsigned char inseed[SEED_BYTES])
 {
   prg(outseeds, HORST_T*HORST_SKBYTES, inseed);
 }
 
-int horst_sign(unsigned char *sig, unsigned char pk[HASH_BYTES], unsigned long long *sigbytes, 
-               const unsigned char seed[SEED_BYTES], 
+int horst_sign(unsigned char *sig, unsigned char pk[HASH_BYTES],
+               unsigned long long *sigbytes,
+               const unsigned char seed[SEED_BYTES],
                unsigned char addr[ADDR_BYTES],
-               const unsigned char m_hash[MSGHASH_BYTES])
+               const unsigned char* m, unsigned int mlen)
+{
+  return horst_sign_conf(sig, pk, sigbytes, seed, addr, m, mlen, default_horst_config);
+}
+
+int horst_sign_conf(unsigned char *sig, unsigned char pk[HASH_BYTES],
+                    unsigned long long *sigbytes,
+                    const unsigned char seed[SEED_BYTES],
+                    unsigned char addr[ADDR_BYTES],
+                    const unsigned char* m, unsigned int mlen,
+                    struct horst_config config)
 {
   unsigned char sk[HORST_T*HORST_SKBYTES];
   unsigned int idx;
   int i,j,k;
   int sigpos = 0;
+
+  // Make sure that the configuration fits the declared message length
+  assert(mlen * 8 == HORST_LOGT * config.horst_k);
 
   struct hash_addr address = init_hash_addr(addr);
   set_type(addr, HORST_ADDR);
@@ -56,18 +74,17 @@ int horst_sign(unsigned char *sig, unsigned char pk[HASH_BYTES], unsigned long l
     }
   }
 
-#if HORST_K != (MSGHASH_BYTES/2)
-#error "Need to have HORST_K == (MSGHASH_BYTES/2)"
-#endif
+  assert(HORST_LOGT == 16);
 
   // First write 64 hashes from level 10 to the signature
   for(j=63*HASH_BYTES;j<127*HASH_BYTES;j++)
     sig[sigpos++] = tree[j];
 
-  // Signature consists of HORST_K parts; each part of secret key and HORST_LOGT-4 auth-path hashes
-  for(i=0;i<HORST_K;i++)
+  // Signature consists of horst_k parts; each part of secret key and
+  // horst_logt-4 auth-path hashes
+  for(i=0;i<config.horst_k;i++)
   {
-    idx = m_hash[2*i] + (m_hash[2*i+1]<<8);
+    idx = m[2*i] + (m[2*i+1]<<8);
 
     for(k=0;k<HORST_SKBYTES;k++)
       sig[sigpos++] = sk[idx*HORST_SKBYTES+k];
@@ -81,27 +98,34 @@ int horst_sign(unsigned char *sig, unsigned char pk[HASH_BYTES], unsigned long l
       idx = (idx-1)/2; // parent node
     }
   }
- 
+
   for(i=0;i<HASH_BYTES;i++)
     pk[i] = tree[i];
-  
-  *sigbytes = HORST_SIGBYTES;
+
+  *sigbytes = config.horst_sigbytes;
   return 0;
 }
 
 int horst_verify(unsigned char *pk,
                  const unsigned char *sig,
                  unsigned char addr[ADDR_BYTES],
-                 const unsigned char m_hash[MSGHASH_BYTES])
+                 const unsigned char* m, unsigned int mlen)
+{
+  return horst_verify_conf(pk, sig, addr, m, mlen, default_horst_config);
+}
+
+int horst_verify_conf(unsigned char *pk,
+                      const unsigned char *sig,
+                      unsigned char addr[ADDR_BYTES],
+                      const unsigned char* m, unsigned int mlen,
+                      struct horst_config config)
 {
   unsigned char buffer[32*HASH_BYTES];
   const unsigned char *level10;
   unsigned int idx;
   int i,j,k;
 
-#if HORST_K != (MSGHASH_BYTES/2)
-#error "Need to have HORST_K == (MSGHASH_BYTES/2)"
-#endif
+  assert(mlen * 8 == HORST_LOGT * config.horst_k);
 
   level10 = sig;
   sig+=64*HASH_BYTES;
@@ -109,9 +133,9 @@ int horst_verify(unsigned char *pk,
   struct hash_addr address = init_hash_addr(addr);
   set_type(addr, HORST_ADDR);
 
-  for(i=0;i<HORST_K;i++)
+  for(i=0;i<config.horst_k;i++)
   {
-    idx = m_hash[2*i] + (m_hash[2*i+1]<<8);
+    idx = m[2*i] + (m[2*i+1]<<8);
 
 #if HORST_SKBYTES != HASH_BYTES
 #error "Need to have HORST_SKBYTES == HASH_BYTES"

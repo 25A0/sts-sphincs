@@ -184,7 +184,7 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
 
   unsigned char horst_root[HASH_BYTES];
   horst_sign(context.horst_signature, horst_root, &horst_sigbytes, seed,
-             addr_bytes, m_h);
+             addr_bytes, m_h, MSGHASH_BYTES);
 
   *address.subtree_layer = 0;
   *clen = 0;
@@ -429,7 +429,7 @@ int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
   res = horst_verify(leaf,
                      sigp,
                      addr_bytes,
-                     message_hash);
+                     message_hash, MSGHASH_BYTES);
   if(res) return res;
   sigp += HORST_SIGBYTES;
   smlen -= HORST_SIGBYTES;

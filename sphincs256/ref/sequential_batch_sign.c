@@ -280,7 +280,8 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   get_seed(seed, tsk, address_bytes);
   unsigned char root[HASH_BYTES];
   unsigned long long horst_sigbytes;
-  horst_sign(sig.horst_signature, root, &horst_sigbytes, seed, address_bytes, m_h);
+  horst_sign(sig.horst_signature, root, &horst_sigbytes, seed, address_bytes,
+             m_h, MSGHASH_BYTES);
 
   sig_bytes += horst_sigbytes;
   *slen += horst_sigbytes;
