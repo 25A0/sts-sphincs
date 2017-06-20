@@ -321,12 +321,12 @@ void compute_authpath_wots_conf(unsigned char root[HASH_BYTES],
                                 const unsigned char *public_seed,
                                 struct wots_config config)
 {
-  int i, idx, j;
+  int i;
   struct hash_addr addr = init_hash_addr(address);
   // The index of the node that will be authenticated with the auth path
   int node = *addr.subtree_node;
 
-  unsigned char tree[2*(1<<SUBTREE_HEIGHT)*HASH_BYTES];
+  unsigned char leaves[(1<<SUBTREE_HEIGHT)*HASH_BYTES];
   unsigned char seed[(1<<SUBTREE_HEIGHT)*SEED_BYTES];
   unsigned char pk[(1<<SUBTREE_HEIGHT)*config.wots_l*HASH_BYTES];
 
@@ -347,43 +347,17 @@ void compute_authpath_wots_conf(unsigned char root[HASH_BYTES],
 
   for(i = 0; i < (1<<SUBTREE_HEIGHT); i++) {
     *addr.subtree_node = i;
-    l_tree_conf(tree + (1<<SUBTREE_HEIGHT)*HASH_BYTES + i * HASH_BYTES,
+    l_tree_conf(leaves + i * HASH_BYTES,
                 pk  + i * config.wots_l*HASH_BYTES,
                 address,
                 public_seed,
                 config);
   }
 
-  int level = 0;
-
-  set_type(address, SPHINCS_ADDR);
-
-  // tree
-  for (i = (1<<SUBTREE_HEIGHT); i > 0; i>>=1)
-  {
-    for (j = 0; j < i; j+=2) {
-      *addr.subtree_node = node_index(height, level+1, j >> 1);
-      hash_nodes(tree + (i>>1)*HASH_BYTES + (j>>1) * HASH_BYTES,
-                 tree + i*HASH_BYTES + j * HASH_BYTES,
-                 address,
-                 public_seed);
-    }
-
-    level++;
-  }
-
-
-  idx = node;
-
-  // copy authpath
-  for(i=0;i<height;i++)
-    memcpy(authpath + i*HASH_BYTES, tree + ((1<<SUBTREE_HEIGHT)>>i)*HASH_BYTES + ((idx >> i) ^ 1) * HASH_BYTES, HASH_BYTES);
-
-  // copy root
-  memcpy(root, tree+HASH_BYTES, HASH_BYTES);
-
   // reset sphincs node address
-  *addr.subtree_node = idx;
+  *addr.subtree_node = node;
+
+  compute_authpath(root, authpath, address, leaves, sk, height, public_seed);
 }
 
 // Computes the auth path for a binary tree with the given leaves.
