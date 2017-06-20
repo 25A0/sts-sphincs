@@ -23,14 +23,15 @@ typedef uint8_t TSUBTREE_IDX;
                                SK_RAND_SEED_BYTES)
 #define CRYPTO_PUBLICKEYBYTES (HASH_BYTES + PUBLIC_SEED_BYTES)
 #define CRYPTO_BYTES (MESSAGE_HASH_SEED_BYTES + (TOTALTREE_HEIGHT+7)/8 + \
-                      STS_HORST_SIGBYTES +                                  \
+                      STS_HORST_SIGBYTES +                              \
                       STS_WOTS_SIGBYTES +                               \
-                      (N_LEVELS)*WOTS_SIGBYTES +                        \
-                      (TOTALTREE_HEIGHT + STS_SUBTREE_HEIGHT)*HASH_BYTES)
+                      (N_LEVELS - 1)*WOTS_SIGBYTES +                    \
+                      HASH_BYTES * (TOTALTREE_HEIGHT - SUBTREE_HEIGHT + \
+                                    STS_SUBTREE_HEIGHT))
 #define CRYPTO_DETERMINISTIC 1
 
 #define CRYPTO_CONTEXTBYTES (SEED_BYTES + sizeof(TSUBTREE_IDX) +        \
                              (TOTALTREE_HEIGHT+7)/8 +                   \
-                             STS_HORST_SIGBYTES +                           \
+                             STS_HORST_SIGBYTES +                       \
                              N_LEVELS * WOTS_SIGBYTES +                 \
-                             TOTALTREE_HEIGHT * HASH_BYTES)
+                             (TOTALTREE_HEIGHT - SUBTREE_HEIGHT) * HASH_BYTES)

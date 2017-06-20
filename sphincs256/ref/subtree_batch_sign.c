@@ -52,7 +52,8 @@ const struct batch_context init_batch_context(unsigned char *bytes) {
   offset += STS_HORST_SIGBYTES;
 
   context.wots_signatures = bytes + offset;
-  offset += N_LEVELS * WOTS_SIGBYTES + TOTALTREE_HEIGHT * HASH_BYTES;
+  offset += N_LEVELS * WOTS_SIGBYTES +
+            (TOTALTREE_HEIGHT - SUBTREE_HEIGHT) * HASH_BYTES;
 
   assert(offset == CRYPTO_CONTEXTBYTES);
 
@@ -124,13 +125,13 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
     has_entropy = 1;
 
     *context.leafidx = (rnd[next_unused_entropy++] &
-                        (((unsigned long long) 1 << TOTALTREE_HEIGHT) - 1));
+                        (((unsigned long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)) - 1));
   } else if(user_leaf_idx < 0) {
     // Other negative leaf indices are considered an error.
     // If someone tried to iterate through all leaves and caused an overflow,
     // this case would catch that, instead of starting to use random leaves.
     return -1;
-  } else if(user_leaf_idx >= (long long) 1 << (TOTALTREE_HEIGHT) ) {
+  } else if(user_leaf_idx >= (long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT) ) {
     // This index is not a valid subtree index.
     return -2;
   } else {
@@ -162,7 +163,7 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
   zerobytes(addr_bytes, ADDR_BYTES);
   struct hash_addr address = init_hash_addr(addr_bytes);
   set_type(addr_bytes, SPHINCS_ADDR);
-  *address.subtree_layer = N_LEVELS + 1;
+  *address.subtree_layer = 0;
   *address.subtree_address = *context.leafidx;
   *address.subtree_node = *context.next_subtree_leafidx;
 
@@ -177,7 +178,7 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
                 sts_wots_config);
   // Create signature for that root at the given leafidx
   // And store that signature in the context
-  *address.subtree_layer = N_LEVELS;
+  *address.subtree_layer = N_LEVELS; // special layer index for HORST
   *address.subtree_address = *context.leafidx >> SUBTREE_HEIGHT;
   *address.subtree_node = *context.leafidx % (1<<SUBTREE_HEIGHT);
 
@@ -189,10 +190,10 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
   horst_sign_conf(context.horst_signature, horst_root, &horst_sigbytes, seed,
                   addr_bytes, root, HASH_BYTES, sts_horst_config);
 
-  *address.subtree_layer = 0;
+  *address.subtree_layer = 1;
   *clen = 0;
 
-  int err = sign_leaf(horst_root, N_LEVELS,
+  int err = sign_leaf(horst_root, N_LEVELS - 1,
                       context.wots_signatures, clen,
                       sk,
                       addr_bytes);
@@ -230,8 +231,10 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
   sigp += sts_horst_config.horst_sigbytes;
 
   memcpy(sigp, context.wots_signatures,
-         N_LEVELS*WOTS_SIGBYTES + TOTALTREE_HEIGHT*HASH_BYTES);
-  sigp += N_LEVELS*WOTS_SIGBYTES + TOTALTREE_HEIGHT*HASH_BYTES;
+         (N_LEVELS -  1)*WOTS_SIGBYTES +
+         (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)*HASH_BYTES);
+  sigp += (N_LEVELS - 1)*WOTS_SIGBYTES +
+          (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)*HASH_BYTES;
 
   *slen = CRYPTO_BYTES;
 
@@ -265,7 +268,7 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   zerobytes(addr_bytes, ADDR_BYTES);
   struct hash_addr address = init_hash_addr(addr_bytes);
   set_type(addr_bytes, SPHINCS_ADDR);
-  *address.subtree_layer = N_LEVELS + 1;
+  *address.subtree_layer = 0;
   *address.subtree_address = *context.leafidx;
   *address.subtree_node = subtree_leafidx;
 
@@ -358,7 +361,7 @@ int restore_subtree_root(unsigned char *m, unsigned long long *mlen,
   zerobytes(addr_bytes, ADDR_BYTES);
   struct hash_addr address = init_hash_addr(addr_bytes);
   set_type(addr_bytes, SPHINCS_ADDR);
-  *address.subtree_layer = N_LEVELS + 1;
+  *address.subtree_layer = 0;
   *address.subtree_address = leafidx;
   *address.subtree_node = subtree_leafidx;
 
@@ -436,10 +439,10 @@ int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
   sigp += sts_horst_config.horst_sigbytes;
   smlen -= sts_horst_config.horst_sigbytes;
 
-  *address.subtree_layer = 0;
+  *address.subtree_layer = 1;
 
   // Restore the root of the hypertree
-  res = verify_leaf(leaf, N_LEVELS,
+  res = verify_leaf(leaf, N_LEVELS - 1,
                     sigp, smlen,
                     pk,
                     addr_bytes);
