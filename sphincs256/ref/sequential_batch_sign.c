@@ -130,7 +130,7 @@ int crypto_context_init(unsigned char *context_bytes, unsigned long long *clen,
   *address.subtree_address = leafidx>>SUBTREE_HEIGHT;
   *address.subtree_node = leafidx % (1 <<SUBTREE_HEIGHT);
 
-  unsigned char* public_seed = get_public_seed_from_sk(sk);
+  const unsigned char* public_seed = get_public_seed_from_sk(sk);
   unsigned char level_0_hash[HASH_BYTES];
   treehash(level_0_hash, SUBTREE_HEIGHT, sk, address_bytes, public_seed);
 

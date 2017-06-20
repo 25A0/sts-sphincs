@@ -379,7 +379,7 @@ int sign_leaf(unsigned char* leaf, int num_levels,
  * verify the signature.
  */
 int verify_leaf(unsigned char *leaf, int num_levels,
-                unsigned char *sigp, unsigned long long smlen,
+                const unsigned char *sigp, unsigned long long smlen,
                 const unsigned char *pk,
                 unsigned char *address)
 {

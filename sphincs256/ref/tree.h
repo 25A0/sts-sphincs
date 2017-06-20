@@ -77,7 +77,7 @@ int sign_leaf(unsigned char* leaf, int num_levels,
               unsigned char *leaf_address);
 
 int verify_leaf(unsigned char *root, int num_levels,
-                unsigned char *sigp, unsigned long long smlen,
+                const unsigned char *sigp, unsigned long long smlen,
                 const unsigned char *pk,
                 unsigned char *leaf_address);
 #endif
