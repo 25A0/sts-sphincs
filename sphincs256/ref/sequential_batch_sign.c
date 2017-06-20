@@ -54,18 +54,26 @@ static int increment_context(unsigned char *context_bytes) {
   // to sign the message
   unsigned long long leafidx = *context.next_leafidx;
 
+  // Check for the sentinel value that indicates that the end of the subtree
+  // was reached with the last signature
+  if(leafidx == (unsigned long long) -1) {
+    return -42;
+  }
+
+  // We need to make sure that we never accidentially use a leaf that
+  // is not even part of the tree.
+  if(leafidx > ((unsigned long long)1 << TOTALTREE_HEIGHT) - 1) return -13;
+
   // Check that this leafidx can still be incremented.
   // This is the case as long as the current leafidx does not point
   // to the last leaf of its subtree.
   unsigned long long first_leaf = leafidx - (leafidx % (1<<SUBTREE_HEIGHT));
-  if(leafidx  - first_leaf == (1<<SUBTREE_HEIGHT) - 1) return -42;
-
-  // We also need to make sure that we never accidentially use a leaf that
-  // is not even part of the tree.
-  if(leafidx > ((unsigned long long)1 << TOTALTREE_HEIGHT) - 1) return -13;
-
-  // Otherwise we can safely increment the leafidx.
-  leafidx += 1;
+  if(leafidx  - first_leaf == (1<<SUBTREE_HEIGHT) - 1) {
+    leafidx = (unsigned long long) -1;
+  } else {
+    // Otherwise we can safely increment the leafidx.
+    leafidx += 1;
+  }
 
   // Write new leafidx to context
   *context.next_leafidx = leafidx;
