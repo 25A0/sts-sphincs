@@ -25,12 +25,12 @@
 struct batch_context{
   // The leaf index that should be used for the next signature
   unsigned long long* next_leafidx;
-  // The hash of the subtree on level 0.  All signatures created with this
-  // context use a leaf which is a child of the subtree with this hash.
-  unsigned char* level_0_hash;
 
-  // The N_LEVELS-1 WOTS signatures that sign level_0_hash under the
-  // key pair that was used to generate this context
+  // The public keys of the WOTS key pairs. Cached to speed up signing.
+  unsigned char* wots_pks;
+
+  // The N_LEVELS-1 WOTS signatures that sign the hash of the subtree on level
+  // 0 under the key pair that was used to generate this context
   unsigned char* signatures;
 };
 
@@ -41,8 +41,8 @@ const struct batch_context init_batch_context(unsigned char* bytes) {
   context.next_leafidx = (unsigned long long*) bytes + offset;
   offset += (TOTALTREE_HEIGHT+7)/8;
 
-  context.level_0_hash = bytes + offset;
-  offset += HASH_BYTES;
+  context.wots_pks = bytes + offset;
+  offset += (1 << SUBTREE_HEIGHT) * HASH_BYTES;
 
   context.signatures = bytes + offset;
 
@@ -60,18 +60,26 @@ static int increment_context(unsigned char *context_bytes) {
   // to sign the message
   unsigned long long leafidx = *context.next_leafidx;
 
+  // Check for the sentinel value that indicates that the end of the subtree
+  // was reached with the last signature
+  if(leafidx == (unsigned long long) -1) {
+    return -42;
+  }
+
+  // We need to make sure that we never accidentially use a leaf that
+  // is not even part of the tree.
+  if(leafidx > ((unsigned long long)1 << TOTALTREE_HEIGHT) - 1) return -13;
+
   // Check that this leafidx can still be incremented.
   // This is the case as long as the current leafidx does not point
   // to the last leaf of its subtree.
   unsigned long long first_leaf = leafidx - (leafidx % (1<<SUBTREE_HEIGHT));
-  if(leafidx  - first_leaf == (1<<SUBTREE_HEIGHT) - 1) return -42;
-
-  // We also need to make sure that we never accidentially use a leaf that
-  // is not even part of the tree.
-  if(leafidx > ((unsigned long long)1 << TOTALTREE_HEIGHT) - 1) return -13;
-
-  // Otherwise we can safely increment the leafidx.
-  leafidx += 1;
+  if(leafidx  - first_leaf == (1<<SUBTREE_HEIGHT) - 1) {
+    leafidx = (unsigned long long) -1;
+  } else {
+    // Otherwise we can safely increment the leafidx.
+    leafidx += 1;
+  }
 
   // Write new leafidx to context
   *context.next_leafidx = leafidx;
@@ -136,18 +144,18 @@ int crypto_context_init(unsigned char *context_bytes, unsigned long long *clen,
   *address.subtree_address = leafidx>>SUBTREE_HEIGHT;
   *address.subtree_node = leafidx % (1 <<SUBTREE_HEIGHT);
 
-  unsigned char* public_seed = get_public_seed_from_sk(sk);
-  treehash(context.level_0_hash, SUBTREE_HEIGHT, sk, address_bytes, public_seed);
-
-  *clen += HASH_BYTES;
-
+  const unsigned char* public_seed = get_public_seed_from_sk(sk);
+  unsigned char level_0_hash[HASH_BYTES];
+  // Compute root of lowest tree and WOTS public keys in the same pass
+  sts_tree_hash_conf(level_0_hash, context.wots_pks, SUBTREE_HEIGHT, sk,
+                     address_bytes, public_seed, default_wots_config);
 
   // ==============================================================
   // Write the upper N_LEVELS - 1 WOTS signatures to the context
   // ==============================================================
   set_type(address_bytes, SPHINCS_ADDR);
   parent(SUBTREE_HEIGHT, address);
-  sign_leaf(context.level_0_hash, N_LEVELS - 1, context.signatures, clen, sk, address_bytes);
+  sign_leaf(level_0_hash, N_LEVELS - 1, context.signatures, clen, sk, address_bytes);
 
   return 0;
 }
@@ -288,7 +296,8 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   get_seed(seed, tsk, address_bytes);
   unsigned char root[HASH_BYTES];
   unsigned long long horst_sigbytes;
-  horst_sign(sig.horst_signature, root, &horst_sigbytes, seed, address_bytes, m_h);
+  horst_sign(sig.horst_signature, root, &horst_sigbytes, seed, address_bytes,
+             m_h, MSGHASH_BYTES);
 
   sig_bytes += horst_sigbytes;
   *slen += horst_sigbytes;
@@ -297,7 +306,20 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // Create WOTS signature for lvl 0
   // ==============================================================
   *address.subtree_layer = 0;
-  sign_leaf(root, 1, sig.wots_signatures, slen, tsk, address_bytes);
+  get_seed(seed, sk, address_bytes);
+
+  wots_sign(sig_bytes, root, seed, public_seed, address_bytes);
+  sig_bytes += WOTS_SIGBYTES;
+  *slen += WOTS_SIGBYTES;
+
+  compute_authpath(root, sig_bytes,address_bytes, context.wots_pks, sk,
+                   SUBTREE_HEIGHT, public_seed);
+
+  sig_bytes += SUBTREE_HEIGHT*HASH_BYTES;
+  *slen += SUBTREE_HEIGHT*HASH_BYTES;
+
+  parent(SUBTREE_HEIGHT, address);
+  // sign_leaf(root, 1, sig.wots_signatures, slen, tsk, address_bytes);
 
   // ==============================================================
   // The verifier already has a copy of the rest of the signature
@@ -311,35 +333,4 @@ int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
 {
   // Should act the same way a normal signature works
   return crypto_sign_open(m, mlen, sm, smlen, pk);
-}
-
-int crypto_sign_open_update(unsigned char *m, unsigned long long *mlen,
-                            const unsigned char* context, unsigned long long *clen,
-                            const unsigned char* sig, unsigned long long smlen,
-                            const unsigned char *pk)
-{
-  // ==============================================================
-  // Construct message hash
-  // ==============================================================
-
-  // ==============================================================
-  // Reconstruct leafidx
-  // ==============================================================
-
-  // ==============================================================
-  // Verify horst signature
-  // ==============================================================
-
-  // ==============================================================
-  // Verify WOTS signature
-  // ==============================================================
-
-  // ==============================================================
-  // Restore root of lowest SPHINCS tree
-  // ==============================================================
-
-  // ==============================================================
-  // Compare that root with the root in context
-  // ==============================================================
-  return 0;
 }

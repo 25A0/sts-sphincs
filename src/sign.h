@@ -1,3 +1,6 @@
+#ifndef SIGN_H
+#define SIGN_H
+
 int crypto_sign_keypair(unsigned char *pk, unsigned char *sk);
 
 int crypto_sign(unsigned char *sm, unsigned long long *smlen, 
@@ -34,3 +37,5 @@ const unsigned char* get_public_seed_from_pk(const unsigned char* pk);
 const unsigned char* get_public_seed_from_sk(const unsigned char* sk);
 
 int get_system_entropy(void* buf, unsigned int length);
+
+#endif

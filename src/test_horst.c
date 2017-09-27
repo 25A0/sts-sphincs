@@ -44,23 +44,11 @@ int test01() {
   // Hash message
   unsigned char m_hash[MSGHASH_BYTES];
   msg_hash(m_hash, message, mlen);
-  
-  horst_sign(
-    sig,
-    pk,
-    &sigbytes, 
-    seed, 
-    addr,
-    m_hash
-  );
+
+  horst_sign(sig, pk, &sigbytes, seed, addr, m_hash, MSGHASH_BYTES);
 
   unsigned char gpk[HASH_BYTES];
-  int res = horst_verify(
-    gpk,
-    sig,
-    addr,
-    m_hash
-  );
+  int res = horst_verify(gpk, sig, addr, m_hash, MSGHASH_BYTES);
 
   if (res != 0) {
     return res;
@@ -86,7 +74,7 @@ int test02() {
   message[i++] = '!';
   // Fill remainder with 0s
   for (; i < mlen; ++i) { message[i] = 0; }
-  
+
   unsigned char sig[HORST_SIGBYTES];
   unsigned char pk[HASH_BYTES];
   unsigned long long sigbytes;
@@ -105,23 +93,11 @@ int test02() {
   // Hash message
   unsigned char m_hash[MSGHASH_BYTES];
   msg_hash(m_hash, message, mlen);
-  
-  horst_sign(
-    sig,
-    pk,
-    &sigbytes, 
-    seed, 
-    addr,
-    m_hash
-  );
+
+  horst_sign(sig, pk, &sigbytes, seed, addr, m_hash, MSGHASH_BYTES);
 
   unsigned char gpk[HASH_BYTES];
-  int res = horst_verify(
-    gpk,
-    sig,
-    addr,
-    m_hash
-  );
+  int res = horst_verify(gpk, sig, addr, m_hash, MSGHASH_BYTES);
 
   if (res != 0) {
     return res;
@@ -132,10 +108,10 @@ int test02() {
 int main(int argc, char const *argv[])
 {
   int err = 0;
-  
+
   err |= test01();
   err |= test02();
-  
+
   if(err)
   {
     printf("Expected and actual results differed.\n");

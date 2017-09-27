@@ -18,6 +18,9 @@ libsphincs.a: sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o 
 libsphincs_sequential.a: sign.o sequential_batch_sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o blake512.o permute.o prg.o chacha12.o hash_address.o tree.o
 	$(AR) -ar cr $@ $^
 
+libsphincs_subtree.a: sign.o subtree_batch_sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o blake512.o permute.o prg.o chacha12.o hash_address.o tree.o
+	$(AR) -ar cr $@ $^
+
 test_hash_addr.o: testutils.o test_hash_addr.c hash_address.o randombytes.o
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
@@ -34,6 +37,18 @@ test_sphincs.o: testutils.o test_sphincs.c libsphincs.a
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
 test_sequential_batch_sign.o: testutils.o test_sequential_batch_sign.c libsphincs_sequential.a
+	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+
+bench_sequential_batch_sign.o: testutils.o bench_sequential_batch_sign.c libsphincs_sequential.a
+	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+
+bench_sphincs_sign.o: testutils.o bench_sphincs_sign.c libsphincs.a
+	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+
+bench_subtree_batch_sign.o: testutils.o bench_subtree_batch_sign.c libsphincs_subtree.a
+	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+
+test_subtree_batch_sign.o: testutils.o test_subtree_batch_sign.c libsphincs_subtree.a
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
 bench_speed.o: testutils.o bench_speed.c libsphincs.a
@@ -56,5 +71,7 @@ test: ${TESTS}
 	done; true
 
 bench: ${BENCHS}
-	time -p sh -c "./bench_speed.o 1 10"
-	time -p sh -c "./bench_speed.o 2 10"
+	-@for bench in ${BENCHS}; do \
+		echo $${bench}; \
+		./$${bench} || echo "${BOLD}$${bench} ${RED}FAILED${NORMAL}"; \
+	done; true
