@@ -1,5 +1,5 @@
-TESTS := $(shell find . -type f -name "test_*.c" | sed -e 's/.c$$/.o/g')
-BENCHS := $(shell find . -type f -name "bench_*.c" | sed -e 's/.c$$/.o/g')
+TESTS := $(shell find . -type f -name "test_*.c" | sed -e 's/.c$$//g')
+BENCHS := $(shell find . -type f -name "bench_*.c" | sed -e 's/.c$$//g')
 
 BOLD := $(shell tput bold)
 RED := $(shell tput setaf 1)
@@ -12,49 +12,37 @@ CFLAGS=-g -Wall
 
 .PHONY = clean test bench
 
-libsphincs.a: sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o blake512.o permute.o prg.o chacha12.o hash_address.o tree.o
+SPHINCS := sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o	\
+           blake512.o permute.o prg.o chacha12.o hash_address.o tree.o
+
+# This Makefile can compile three different libraries. libsphincs is classic
+# SPHINCS, libsphincs_sequential uses sequential batch signing, and
+# libsphincs_subtree uses subtree batch signing.
+libsphincs.a: ${SPHINCS}
 	$(AR) -ar cr $@ $^
 
-libsphincs_sequential.a: sign.o sequential_batch_sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o blake512.o permute.o prg.o chacha12.o hash_address.o tree.o
+libsphincs_sequential.a: sequential_batch_sign.o ${SPHINCS}
 	$(AR) -ar cr $@ $^
 
-libsphincs_subtree.a: sign.o subtree_batch_sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o blake512.o permute.o prg.o chacha12.o hash_address.o tree.o
+libsphincs_subtree.a: subtree_batch_sign.o ${SPHINCS}
 	$(AR) -ar cr $@ $^
 
-test_hash_addr.o: testutils.o test_hash_addr.c hash_address.o randombytes.o
-	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+# These next lines define on which SPHINCS library the various tests and
+# benchmarks depend.
+test_horst test_wots test_tree test_sphincs bench_sphincs_sign bench_speed: libsphincs.a
 
-test_chacha12.o: testutils.o test_chacha12.c chacha12.o randombytes.o
-	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+test_sequential_batch_sign bench_sequential_batch_sign: libsphincs_sequential.a
 
-test_wots.o: testutils.o test_wots.c libsphincs.a
-	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+bench_subtree_batch_sign test_subtree_batch_sign: libsphincs_subtree.a
 
-test_tree.o: testutils.o test_tree.c libsphincs.a
-	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+test_hash_addr: hash_address.o randombytes.o
 
-test_sphincs.o: testutils.o test_sphincs.c libsphincs.a
-	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+test_chacha12: chacha12.o randombytes.o
 
-test_sequential_batch_sign.o: testutils.o test_sequential_batch_sign.c libsphincs_sequential.a
-	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
-
-bench_sequential_batch_sign.o: testutils.o bench_sequential_batch_sign.c libsphincs_sequential.a
-	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
-
-bench_sphincs_sign.o: testutils.o bench_sphincs_sign.c libsphincs.a
-	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
-
-bench_subtree_batch_sign.o: testutils.o bench_subtree_batch_sign.c libsphincs_subtree.a
-	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
-
-test_subtree_batch_sign.o: testutils.o test_subtree_batch_sign.c libsphincs_subtree.a
-	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
-
-bench_speed.o: testutils.o bench_speed.c libsphincs.a
-	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
-
-test_horst.o: testutils.o test_horst.c libsphincs.a
+# All tests and benchmarks need the object file of the same name, as well as
+# testutils.o
+.SECONDEXPANSION:
+${TESTS} ${BENCHS}: testutils.o $$@.o
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
 %.o: %.c
@@ -64,12 +52,14 @@ clean:
 	-rm *.o
 	-rm *.a
 
+# This recipe runs all tests
 test: ${TESTS}
 	-@for test in ${TESTS}; do \
 		echo $${test}; \
 		./$${test} || echo "${BOLD}$${test} ${RED}FAILED${NORMAL}"; \
 	done; true
 
+# This recipe runs all benchmarks
 bench: ${BENCHS}
 	-@for bench in ${BENCHS}; do \
 		echo $${bench}; \
