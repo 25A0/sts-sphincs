@@ -1,5 +1,4 @@
-#include "batch_sign.h"
-#include "sign.h"
+#include "subtree_batch_sign.h"
 #include "hash.h"
 #include "tree.h"
 #include "wots.h"
@@ -7,7 +6,6 @@
 #include "hash_address.h"
 #include "randombytes.h"
 #include "zerobytes.h"
-#include "subtree_batch_api.h"
 #include "crypto_hash_blake512.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -64,6 +62,39 @@ const struct batch_context init_batch_context(unsigned char *bytes) {
   assert(offset == CRYPTO_CONTEXTBYTES);
 
   return context;
+}
+
+const unsigned char* get_public_seed_from_pk(const unsigned char* pk) {
+  return pk + HASH_BYTES;
+}
+
+const unsigned char* get_public_seed_from_sk(const unsigned char* sk) {
+  return sk + SEED_BYTES;
+}
+
+/*
+ * Format pk: [root|public seed]
+ * Format sk: [seed|public seed|secret seed]
+ */
+int crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
+{
+  randombytes(sk,CRYPTO_SECRETKEYBYTES);
+
+  // Initialization of top-subtree address
+  unsigned char address[ADDR_BYTES];
+  set_type(address, SPHINCS_ADDR);
+  struct hash_addr addr = init_hash_addr(address);
+  *addr.subtree_layer = N_LEVELS - 1;
+  *addr.subtree_address = 0;
+  *addr.subtree_node = 0;
+
+  // Construct top subtree
+  treehash(pk, SUBTREE_HEIGHT, sk, address, get_public_seed_from_sk(sk));
+
+  // Copy public seed
+  memcpy(pk + HASH_BYTES, sk + SEED_BYTES, PUBLIC_SEED_BYTES);
+
+  return 0;
 }
 
 // The configuration that will be used for the WOTS signature that signs

@@ -1,8 +1,5 @@
 #include <stdio.h>
-#include "sign.h"
-#include "api.h"
-#include "subtree_batch_api.h"
-#include "batch_sign.h"
+#include "subtree_batch_sign.h"
 #include "testutils.h"
 #include "randombytes.h"
 

@@ -1,5 +1,6 @@
 #include "tree.h"
 #include "hash.h"
+#include "zerobytes.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

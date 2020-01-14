@@ -1,8 +1,5 @@
 #include <stdio.h>
-#include "sign.h"
-#include "api.h"
-#include "sequential_batch_api.h"
-#include "batch_sign.h"
+#include "sequential_batch_sign.h"
 #include "testutils.h"
 #include "randombytes.h"
 
@@ -42,7 +39,7 @@ int test01()
   res = crypto_sign_full(message, mlen, context, &clen, sm, &slen, sk);
   if(res != 0) return res;
 
-  res = crypto_sign_open(message, &mlen, sm, slen, pk);
+  res = crypto_sign_open_full(message, &mlen, sm, slen, pk);
 
   return res;
 }
@@ -83,8 +80,8 @@ int test02()
   if(!eq) return -2;
 
   // Both signatures should verify
-  res |= crypto_sign_open(message, &mlen, sm1, slen1, pk);
-  res |= crypto_sign_open(message, &mlen, sm2, slen2, pk) << 1;
+  res |= crypto_sign_open_full(message, &mlen, sm1, slen1, pk);
+  res |= crypto_sign_open_full(message, &mlen, sm2, slen2, pk) << 1;
 
   return res;
 }

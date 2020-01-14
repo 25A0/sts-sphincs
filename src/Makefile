@@ -12,16 +12,16 @@ CFLAGS=-g -Wall
 
 .PHONY = clean test bench
 
-SPHINCS := sign.o horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o	\
+SPHINCS := horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o	\
            blake512.o permute.o prg.o chacha12.o hash_address.o tree.o
 
 # This Makefile can compile three different libraries. libsphincs is classic
 # SPHINCS, libsphincs_sequential uses sequential batch signing, and
 # libsphincs_subtree uses subtree batch signing.
-libsphincs.a: ${SPHINCS}
+libsphincs.a: sign.o ${SPHINCS}
 	$(AR) -ar cr $@ $^
 
-libsphincs_sequential.a: sequential_batch_sign.o ${SPHINCS}
+libsphincs_sequential.a: sequential_batch_sign.o entropy.o ${SPHINCS}
 	$(AR) -ar cr $@ $^
 
 libsphincs_subtree.a: subtree_batch_sign.o ${SPHINCS}

@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "sign.h"
-#include "api.h"
 #include "testutils.h"
 #include "randombytes.h"
 

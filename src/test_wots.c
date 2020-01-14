@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include "api.h"
 #include "randombytes.h"
 #include "wots.h"
 #include "testutils.h"

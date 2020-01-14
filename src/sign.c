@@ -1,14 +1,7 @@
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-
 #include "sign.h"
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 
-#include "api.h"
 #include "randombytes.h"
 #include "zerobytes.h"
 #include "params.h"
@@ -24,6 +17,20 @@
 #if (TOTALTREE_HEIGHT-SUBTREE_HEIGHT) > 64
 #error "TOTALTREE_HEIGHT-SUBTREE_HEIGHT must be at most 64" 
 #endif
+
+struct signature {
+  // The hash seed that was used to hash the message
+  unsigned char* message_hash_seed;
+  // The index of the HORST leaf that signed the message
+  unsigned char* leafidx;
+  // The HORST signature of the message
+  unsigned char* horst_signature;
+  // The WOTS signatures that verify the HORST signature under the used key pair
+  unsigned char* wots_signatures;
+
+  // The signature always contains a copy of the message at the very end
+  unsigned char* message;
+};
 
 struct signature init_signature(unsigned char* bytes) {
   struct signature sig;
@@ -48,14 +55,14 @@ struct signature init_signature(unsigned char* bytes) {
 
 // Since the code should ideally work across systems with different endianness,
 // this function defines unambiguously how an ull is serialized.
-inline void write_ull(unsigned char* buf, const unsigned long long ull,
+void write_ull(unsigned char* buf, const unsigned long long ull,
                       const unsigned int bytes) {
   int i;
   for(i=0;i<bytes;i++)
     buf[i] = (ull >> 8*i) & 0xff;
 }
 
-inline unsigned long long
+unsigned long long
 read_ull(unsigned char* buf, const unsigned int bytes) {
   unsigned long long res = 0;
   int i;
@@ -302,12 +309,3 @@ fail:
   return -1;
 }
 
-int get_system_entropy(void* buf, unsigned int length) {
-    // TODO: ideally we should use getentropy from sys/random.h if it's
-    // available.
-    int file = open("/dev/urandom", O_RDONLY);
-    int read_bytes = read(file, buf, length);
-    close(file);
-    if(read_bytes < length) return -1;
-    else return 0;
-}

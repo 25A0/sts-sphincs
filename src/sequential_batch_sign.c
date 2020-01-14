@@ -1,6 +1,4 @@
-#include "sign.h"
-#include "batch_sign.h"
-#include "sequential_batch_api.h"
+#include "sequential_batch_sign.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -15,6 +13,7 @@
 #include "crypto_hash_blake512.h"
 #include "hash_address.h"
 #include "tree.h"
+#include "entropy.h"
 
 #define BIGINT_BYTES ((TOTALTREE_HEIGHT-SUBTREE_HEIGHT+7)/8)
 
@@ -47,6 +46,92 @@ const struct batch_context init_batch_context(unsigned char* bytes) {
   context.signatures = bytes + offset;
 
   return context;
+}
+
+struct signature {
+  // The hash seed that was used to hash the message
+  unsigned char* message_hash_seed;
+  // The index of the HORST leaf that signed the message
+  unsigned char* leafidx;
+  // The HORST signature of the message
+  unsigned char* horst_signature;
+  // The WOTS signatures that verify the HORST signature under the used key pair
+  unsigned char* wots_signatures;
+
+  // The signature always contains a copy of the message at the very end
+  unsigned char* message;
+};
+
+struct signature init_signature(unsigned char* bytes) {
+  struct signature sig;
+  unsigned long long offset = 0;
+
+  sig.message_hash_seed = bytes + offset;
+  offset += MESSAGE_HASH_SEED_BYTES;
+
+  sig.leafidx = bytes + offset;
+  offset += (TOTALTREE_HEIGHT+7)/8;
+
+  sig.horst_signature = bytes + offset;
+  offset += HORST_SIGBYTES;
+
+  sig.wots_signatures = bytes + offset;
+
+  // The message is always at the very end of the signature
+  sig.message = bytes + CRYPTO_BYTES;
+
+  return sig;
+}
+
+const unsigned char* get_public_seed_from_pk(const unsigned char* pk) {
+  return pk + HASH_BYTES;
+}
+
+const unsigned char* get_public_seed_from_sk(const unsigned char* sk) {
+  return sk + SEED_BYTES;
+}
+
+// Since the code should ideally work across systems with different endianness,
+// this function defines unambiguously how an ull is serialized.
+void write_ull(unsigned char* buf, const unsigned long long ull,
+                      const unsigned int bytes) {
+  int i;
+  for(i=0;i<bytes;i++)
+    buf[i] = (ull >> 8*i) & 0xff;
+}
+
+unsigned long long
+read_ull(unsigned char* buf, const unsigned int bytes) {
+  unsigned long long res = 0;
+  int i;
+  for(i=0;i<bytes;i++)
+    res |= (((unsigned long long)buf[i]) << 8*i);
+  return res;
+}
+
+/*
+ * Format pk: [root|public seed]
+ * Format sk: [seed|public seed|secret seed]
+ */
+int crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
+{
+  randombytes(sk,CRYPTO_SECRETKEYBYTES);
+
+  // Initialization of top-subtree address
+  unsigned char address[ADDR_BYTES];
+  set_type(address, SPHINCS_ADDR);
+  struct hash_addr addr = init_hash_addr(address);
+  *addr.subtree_layer = N_LEVELS - 1;
+  *addr.subtree_address = 0;
+  *addr.subtree_node = 0;
+
+  // Construct top subtree
+  treehash(pk, SUBTREE_HEIGHT, sk, address, get_public_seed_from_sk(sk));
+
+  // Copy public seed
+  memcpy(pk + HASH_BYTES, sk + SEED_BYTES, PUBLIC_SEED_BYTES);
+
+  return 0;
 }
 
 /*
@@ -327,10 +412,96 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   return 0;
 }
 
+// The body of this function is copied from sign.c. Since the signature
+// has the exact same structure as a classic SPHINCS signature, we
+// can use the exact same code.
 int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
                           const unsigned char *sm, unsigned long long smlen,
                           const unsigned char *pk)
 {
-  // Should act the same way a normal signature works
-  return crypto_sign_open(m, mlen, sm, smlen, pk);
+  unsigned long long i;
+  unsigned long long leafidx=0;
+  unsigned char root[HASH_BYTES];
+  unsigned char sig_bytes[CRYPTO_BYTES];
+  unsigned char *sigp;
+  unsigned char tpk[CRYPTO_PUBLICKEYBYTES];
+
+  if(smlen < CRYPTO_BYTES)
+    return -1;
+
+  memcpy(sig_bytes, sm, CRYPTO_BYTES);
+  struct signature sig_struct = init_signature(sig_bytes);
+
+  unsigned char m_h[MSGHASH_BYTES];
+
+  for(i=0;i<CRYPTO_PUBLICKEYBYTES;i++)
+    tpk[i] = pk[i];
+
+  // construct message hash
+  {
+    unsigned char R[MESSAGE_HASH_SEED_BYTES];
+
+    memcpy(R, sig_struct.message_hash_seed, MESSAGE_HASH_SEED_BYTES);
+
+    // Message length
+    int len = smlen - CRYPTO_BYTES;
+
+    unsigned char *scratch = m;
+
+
+    memcpy(scratch + MESSAGE_HASH_SEED_BYTES + CRYPTO_PUBLICKEYBYTES, sm + CRYPTO_BYTES, len);
+
+    // cpy R
+    memcpy(scratch, R, MESSAGE_HASH_SEED_BYTES);
+
+    // cpy pub key
+    memcpy(scratch + MESSAGE_HASH_SEED_BYTES, tpk, CRYPTO_PUBLICKEYBYTES);
+
+    msg_hash(m_h, scratch, len + MESSAGE_HASH_SEED_BYTES + CRYPTO_PUBLICKEYBYTES);
+
+  }
+  sigp = sig_bytes;
+
+  sigp += MESSAGE_HASH_SEED_BYTES;
+  smlen -= MESSAGE_HASH_SEED_BYTES;
+
+  leafidx = read_ull(sig_struct.leafidx, (TOTALTREE_HEIGHT+7)/8);
+
+  unsigned char address[ADDR_BYTES];
+  struct hash_addr addr = init_hash_addr(address);
+  *addr.subtree_layer = N_LEVELS;
+  *addr.subtree_address = leafidx >> SUBTREE_HEIGHT;
+  *addr.subtree_node = leafidx % (1<<SUBTREE_HEIGHT);
+
+  horst_verify(root,
+               sig_struct.horst_signature,
+               address,
+               m_h, MSGHASH_BYTES);
+
+  sigp += (TOTALTREE_HEIGHT+7)/8;
+  smlen -= (TOTALTREE_HEIGHT+7)/8;
+  
+  sigp += HORST_SIGBYTES;
+  smlen -= HORST_SIGBYTES;
+
+  *addr.subtree_layer = 0;
+  verify_leaf(root, N_LEVELS, sig_struct.wots_signatures, smlen, pk, address);
+
+  for(i=0;i<HASH_BYTES;i++)
+    if(root[i] != tpk[i])
+      goto fail;
+  
+  *mlen = smlen;
+  for(i=0;i<*mlen;i++)
+    m[i] = m[i+MESSAGE_HASH_SEED_BYTES+CRYPTO_PUBLICKEYBYTES];
+
+  return 0;
+  
+  
+fail:
+  *mlen = smlen;
+  for(i=0;i<*mlen;i++)
+    m[i] = 0;
+  *mlen = -1;
+  return -1;
 }
