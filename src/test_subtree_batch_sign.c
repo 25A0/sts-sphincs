@@ -36,7 +36,7 @@ int test01()
   unsigned char sm[CRYPTO_BYTES + mlen];
 
   unsigned long long slen;
-  res = crypto_sign_full(message, mlen, sts, &clen, sm, &slen, sk);
+  res = crypto_sts_sign(message, mlen, sts, &clen, sm, &slen, sk);
   if(res != 0) return res;
 
   res = crypto_sign_open(message, &mlen, sm, slen, pk);
@@ -67,9 +67,9 @@ int test02()
   unsigned char sm2[CRYPTO_BYTES + mlen];
   unsigned long long slen2;
 
-  res |= crypto_sign_full(message, mlen, sts, &clen, sm1, &slen1, sk);
+  res |= crypto_sts_sign(message, mlen, sts, &clen, sm1, &slen1, sk);
   if(res != 0) return res;
-  res |= crypto_sign_full(message, mlen, sts, &clen, sm2, &slen2, sk);
+  res |= crypto_sts_sign(message, mlen, sts, &clen, sm2, &slen2, sk);
   if(res != 0) return res;
 
   // The length of both signatures should be the same

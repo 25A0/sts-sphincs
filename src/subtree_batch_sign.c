@@ -241,44 +241,6 @@ int crypto_sts_init(unsigned char *sts_buffer, unsigned long long *clen,
   return 0;
 }
 
-int crypto_sign_full(const unsigned char *m, unsigned long long mlen,
-                     unsigned char *sts_bytes, unsigned long long *clen,
-                     unsigned char *sig, unsigned long long *slen,
-                     const unsigned char *sk)
-{
-  unsigned char* sigp = sig;
-  struct batch_sts sts = init_batch_sts(sts_bytes);
-
-  // Start off by writing the used leaf idx to the signature
-  memcpy(sigp, (unsigned char*) sts.leafidx, sizeof(unsigned long long));
-  sigp += sizeof(unsigned long long);
-
-  // Do whatever needs to happen for crypto_sign_update
-  *slen = 0;
-  int res = crypto_sign_update(m, mlen, sts_bytes, clen, sigp, slen, sk);
-  if(res) {
-    return res;
-  }
-  assert(*slen == sizeof(unsigned long) + MESSAGE_HASH_SEED_BYTES +
-         STS_WOTS_SIGBYTES + SUBTREE_HEIGHT*HASH_BYTES);
-  sigp += *slen;
-
-  // Copy the remaining SPHINCS signature to the signature buffer
-
-  memcpy(sigp, sts.horst_signature, sts_horst_config.horst_sigbytes);
-  sigp += sts_horst_config.horst_sigbytes;
-
-  memcpy(sigp, sts.wots_signatures,
-         (N_LEVELS -  1)*WOTS_SIGBYTES +
-         (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)*HASH_BYTES);
-  sigp += (N_LEVELS - 1)*WOTS_SIGBYTES +
-          (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)*HASH_BYTES;
-
-  *slen = CRYPTO_BYTES;
-
-  return 0;
-}
-
 int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
                        unsigned char *sts_bytes, unsigned long long *clen,
                        unsigned char *sig, unsigned long long *slen,
@@ -360,6 +322,44 @@ int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
                    sts.subtree_sk_seed, SUBTREE_HEIGHT, public_seed);
   sigp += SUBTREE_HEIGHT*HASH_BYTES;
   *slen += SUBTREE_HEIGHT*HASH_BYTES;
+
+  return 0;
+}
+
+int crypto_sts_sign(const unsigned char *m, unsigned long long mlen,
+                    unsigned char *sts_bytes, unsigned long long *clen,
+                    unsigned char *sig, unsigned long long *slen,
+                    const unsigned char *sk)
+{
+  unsigned char* sigp = sig;
+  struct batch_sts sts = init_batch_sts(sts_bytes);
+
+  // Start off by writing the used leaf idx to the signature
+  memcpy(sigp, (unsigned char*) sts.leafidx, sizeof(unsigned long long));
+  sigp += sizeof(unsigned long long);
+
+  // Do whatever needs to happen for crypto_sign_update
+  *slen = 0;
+  int res = crypto_sign_update(m, mlen, sts_bytes, clen, sigp, slen, sk);
+  if(res) {
+    return res;
+  }
+  assert(*slen == sizeof(unsigned long) + MESSAGE_HASH_SEED_BYTES +
+         STS_WOTS_SIGBYTES + SUBTREE_HEIGHT*HASH_BYTES);
+  sigp += *slen;
+
+  // Copy the remaining SPHINCS signature to the signature buffer
+
+  memcpy(sigp, sts.horst_signature, sts_horst_config.horst_sigbytes);
+  sigp += sts_horst_config.horst_sigbytes;
+
+  memcpy(sigp, sts.wots_signatures,
+         (N_LEVELS -  1)*WOTS_SIGBYTES +
+         (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)*HASH_BYTES);
+  sigp += (N_LEVELS - 1)*WOTS_SIGBYTES +
+          (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)*HASH_BYTES;
+
+  *slen = CRYPTO_BYTES;
 
   return 0;
 }
@@ -505,5 +505,5 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
   int res = crypto_sts_init(sts, &clen, sk, -1);
   if(res != 0) return res;
 
-  return crypto_sign_full(m, mlen, sts, &clen, sm, smlen, sk);
+  return crypto_sts_sign(m, mlen, sts, &clen, sm, smlen, sk);
 }

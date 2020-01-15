@@ -245,44 +245,6 @@ int crypto_sts_init(unsigned char *sts_bytes, unsigned long long *clen,
   return 0;
 }
 
-int crypto_sign_full(const unsigned char *m, unsigned long long mlen,
-                     unsigned char *sts_bytes, unsigned long long *clen,
-                     unsigned char *sig, unsigned long long *slen,
-                     const unsigned char *sk)
-{
-  unsigned char* sigp = sig;
-  *slen = 0;
-  struct batch_sts sts = init_batch_sts(sts_bytes);
-
-  // ==============================================================
-  // Do whatever we do when we update a signature
-  // ==============================================================
-  unsigned long long uslen = 0;
-  crypto_sign_update(m, mlen, sts_bytes, clen, sigp, &uslen, sk);
-  sigp += uslen;
-  *slen += uslen;
-
-  // ==============================================================
-  // Copy remaining signatures from sts
-  // ==============================================================
-
-  // Copy the WOTS signatures and auth paths for the upper N_LEVELS - 1
-  // levels to the signature.
-  // We assume that the sig pointer has been shifted forwards while
-  // crypto_sign_update has written to it.
-  memcpy(sigp, sts.signatures,
-         (N_LEVELS - 1) * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES));
-  sigp += (N_LEVELS - 1) * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES);
-  *slen += (N_LEVELS - 1) * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES);
-
-  // Copy the message to the end of the signature
-  memcpy(sigp, m, mlen);
-  sigp += mlen;
-  *slen += mlen;
-
-  return 0;
-}
-
 int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
                        unsigned char *sts_bytes, unsigned long long *clen,
                        unsigned char *sig_bytes, unsigned long long *slen,
@@ -412,6 +374,44 @@ int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
   return 0;
 }
 
+int crypto_sts_sign(const unsigned char *m, unsigned long long mlen,
+                    unsigned char *sts_bytes, unsigned long long *clen,
+                    unsigned char *sig, unsigned long long *slen,
+                    const unsigned char *sk)
+{
+  unsigned char* sigp = sig;
+  *slen = 0;
+  struct batch_sts sts = init_batch_sts(sts_bytes);
+
+  // ==============================================================
+  // Do whatever we do when we update a signature
+  // ==============================================================
+  unsigned long long uslen = 0;
+  crypto_sign_update(m, mlen, sts_bytes, clen, sigp, &uslen, sk);
+  sigp += uslen;
+  *slen += uslen;
+
+  // ==============================================================
+  // Copy remaining signatures from sts
+  // ==============================================================
+
+  // Copy the WOTS signatures and auth paths for the upper N_LEVELS - 1
+  // levels to the signature.
+  // We assume that the sig pointer has been shifted forwards while
+  // crypto_sign_update has written to it.
+  memcpy(sigp, sts.signatures,
+         (N_LEVELS - 1) * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES));
+  sigp += (N_LEVELS - 1) * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES);
+  *slen += (N_LEVELS - 1) * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES);
+
+  // Copy the message to the end of the signature
+  memcpy(sigp, m, mlen);
+  sigp += mlen;
+  *slen += mlen;
+
+  return 0;
+}
+
 // The body of this function is copied from sign.c. Since the signature
 // has the exact same structure as a classic SPHINCS signature, we
 // can use the exact same code.
@@ -517,5 +517,5 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
   int res = crypto_sts_init(sts, &clen, sk, -1);
   if(res != 0) return res;
 
-  return crypto_sign_full(m, mlen, sts, &clen, sm, smlen, sk);
+  return crypto_sts_sign(m, mlen, sts, &clen, sm, smlen, sk);
 }

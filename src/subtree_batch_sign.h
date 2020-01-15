@@ -58,15 +58,9 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
 int crypto_sts_init(unsigned char *sts, unsigned long long *clen,
                         const unsigned char *sk, long long subtree_idx);
 
-int crypto_sign_full(const unsigned char *m, unsigned long long mlen,
-                     unsigned char *sts, unsigned long long *clen,
-                     unsigned char *sig, unsigned long long *slen,
-                     const unsigned char *sk);
-
-int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
-                       unsigned char *sts, unsigned long long *clen,
-                       unsigned char *sig, unsigned long long *slen,
-                       const unsigned char *sk);
-
+int crypto_sts_sign(const unsigned char *m, unsigned long long mlen,
+                    unsigned char *sts, unsigned long long *clen,
+                    unsigned char *sig, unsigned long long *slen,
+                    const unsigned char *sk);
 
 #endif
