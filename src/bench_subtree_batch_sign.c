@@ -1,8 +1,5 @@
 #include <stdio.h>
-#include "sign.h"
-#include "api.h"
-#include "subtree_batch_api.h"
-#include "batch_sign.h"
+#include "subtree_batch_sign.h"
 #include "testutils.h"
 #include "randombytes.h"
 
@@ -84,7 +81,7 @@ int main(int argc, char const *argv[])
 {
   int err = 0;
 
-  err |= run_test(&bench, "Benchmark SPHINCS batch signatures");
+  err |= run_test(&bench, "Benchmark SPHINCS subtree batch signatures");
 
   if(err)
   {
