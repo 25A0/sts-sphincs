@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "sequential_batch_sign.h"
 #include "testutils.h"
+#include "benchutils.h"
 #include "randombytes.h"
 
 static __inline__ unsigned long GetCC(void)
@@ -8,11 +9,6 @@ static __inline__ unsigned long GetCC(void)
   unsigned a, d;
   asm volatile("rdtsc" : "=a" (a), "=d" (d));
   return ((unsigned long)a) | (((unsigned long)d) << 32);
-}
-
-void print_elapsed(const char* desc, unsigned long start, unsigned long end)
-{
-  printf("%s: %lu\n", desc, end - start);
 }
 
 int bench()
@@ -25,16 +21,16 @@ int bench()
   unsigned char message[mlen + CRYPTO_BYTES];
   randombytes(message, mlen);
 
-  printf("crypto_secretkeybytes: %d\n", CRYPTO_SECRETKEYBYTES);
-  printf("crypto_publickeybytes: %d\n", CRYPTO_PUBLICKEYBYTES);
-  printf("crypto_sts_bytes:      %d\n", CRYPTO_STS_BYTES);
-  printf("crypto_bytes:          %d\n", CRYPTO_BYTES);
+  print_bytes("crypto_secretkeybytes", CRYPTO_SECRETKEYBYTES);
+  print_bytes("crypto_publickeybytes", CRYPTO_PUBLICKEYBYTES);
+  print_bytes("crypto_sts_bytes", CRYPTO_STS_BYTES);
+  print_bytes("crypto_bytes", CRYPTO_BYTES);
 
   {
     unsigned long start = GetCC();
     crypto_sign_keypair(pk, sk);
     unsigned long end = GetCC();
-    print_elapsed("Keypair", start, end);
+    print_cycles("Keypair", start, end);
   }
 
   unsigned char sts[CRYPTO_STS_BYTES];
@@ -46,7 +42,7 @@ int bench()
     res |= crypto_sts_init(sts, &clen, sk, -1);
     if(res != 0) return res;
     unsigned long end = GetCC();
-    print_elapsed("STS init", start, end);
+    print_cycles("STS init", start, end);
   }
 
   unsigned char sm[CRYPTO_BYTES + mlen];
@@ -61,19 +57,19 @@ int bench()
       if(res != 0) return res;
     }
     unsigned long end = GetCC();
-    print_elapsed("Sign", start, end);
+    print_cycles("Sign", start, end);
   }
 
   {
     unsigned long start = GetCC();
     res |= crypto_sign_open_full(message, &mlen, sm, slen, pk);
     unsigned long end = GetCC();
-    print_elapsed("Verify", start, end);
+    print_cycles("Verify", start, end);
   }
 
 
   unsigned long end_count = GetCC();
-  print_elapsed("Elapsed cycles", start_count, end_count);
+  print_cycles("Elapsed cycles", start_count, end_count);
   return res;
 }
 

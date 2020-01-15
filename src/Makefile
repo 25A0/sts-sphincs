@@ -42,7 +42,10 @@ test_chacha12: chacha12.o randombytes.o
 # All tests and benchmarks need the object file of the same name, as well as
 # testutils.o
 .SECONDEXPANSION:
-${TESTS} ${BENCHS}: testutils.o $$@.o
+${BENCHS}: benchutils.o testutils.o $$@.o
+	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
+
+${TESTS}: testutils.o $$@.o
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
 %.o: %.c
