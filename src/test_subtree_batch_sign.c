@@ -171,6 +171,42 @@ int test05()
   return res;
 }
 
+int test06()
+{
+  unsigned char sk[CRYPTO_SECRETKEYBYTES];
+  unsigned char pk[CRYPTO_PUBLICKEYBYTES];
+
+  crypto_sign_keypair(pk, sk);
+
+  unsigned char sts[CRYPTO_STS_BYTES];
+  unsigned long long clen;
+
+  int res = 0;
+  res |= crypto_sts_init(sts, &clen, sk, -1);
+  if(res != 0) return -1;
+
+  // Right after creating the STS, there should be a full subtree of remaining uses
+  long long remaining_uses;
+  remaining_uses = crypto_sts_remaining_uses(sts);
+  if(remaining_uses != (1 << SUBTREE_HEIGHT)) return -1;
+
+  // Now we sign a message
+  unsigned long long mlen = 32;
+  unsigned char message[mlen + CRYPTO_BYTES];
+  randombytes(message, mlen);
+
+  unsigned char sm[CRYPTO_BYTES + mlen];
+
+  unsigned long long smlen;
+  crypto_sts_sign(message, mlen, sts, &clen, sm, &smlen, sk);
+
+  // And after that we should have one fewer remaining uses
+  remaining_uses = crypto_sts_remaining_uses(sts);
+  if(remaining_uses != (1 << SUBTREE_HEIGHT) - 1) return -1;
+
+  return 0;
+}
+
 int main(int argc, char const *argv[])
 {
   int err = 0;
@@ -180,6 +216,7 @@ int main(int argc, char const *argv[])
   err |= run_test(&test03, "Test that invalid subtree index is rejected");
   err |= run_test(&test04, "Test that STS is non-deterministic with chosen subtree index");
   err |= run_test(&test05, "Test classic API with sequential batch signing");
+  err |= run_test(&test06, "Test remaining uses");
 
   if(err)
   {

@@ -241,6 +241,13 @@ int crypto_sts_init(unsigned char *sts_buffer, unsigned long long *clen,
   return 0;
 }
 
+long long crypto_sts_remaining_uses(unsigned char *sts_bytes)
+{
+  struct batch_sts sts = init_batch_sts(sts_bytes);
+
+  return (1 << SUBTREE_HEIGHT) - *sts.next_subtree_leafidx;
+}
+
 int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
                        unsigned char *sts_bytes, unsigned long long *clen,
                        unsigned char *sig, unsigned long long *slen,

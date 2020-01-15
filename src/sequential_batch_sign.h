@@ -41,4 +41,6 @@ int crypto_sts_sign(const unsigned char *m, unsigned long long mlen,
                     unsigned char *sig, unsigned long long *slen,
                     const unsigned char *sk);
 
+long long crypto_sts_remaining_uses(unsigned char *sts);
+
 #endif
