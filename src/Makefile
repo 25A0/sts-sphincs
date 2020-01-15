@@ -19,13 +19,13 @@ SPHINCS := horst.o zerobytes.o randombytes.o hash.o wots.o blake256.o	\
 # SPHINCS, libsphincs_sequential uses sequential batch signing, and
 # libsphincs_subtree uses subtree batch signing.
 libsphincs.a: sign.o ${SPHINCS}
-	$(AR) -ar cr $@ $^
+	$(AR) cr $@ $^
 
 libsphincs_sequential.a: sequential_batch_sign.o entropy.o ${SPHINCS}
-	$(AR) -ar cr $@ $^
+	$(AR) cr $@ $^
 
 libsphincs_subtree.a: subtree_batch_sign.o ${SPHINCS}
-	$(AR) -ar cr $@ $^
+	$(AR) cr $@ $^
 
 # These next lines define on which SPHINCS library the various tests and
 # benchmarks depend.
