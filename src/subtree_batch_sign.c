@@ -241,7 +241,7 @@ int crypto_sts_init(unsigned char *sts_buffer, unsigned long long *clen,
   return 0;
 }
 
-int crypto_sign_full(unsigned char *m, unsigned long long mlen,
+int crypto_sign_full(const unsigned char *m, unsigned long long mlen,
                      unsigned char *sts_bytes, unsigned long long *clen,
                      unsigned char *sig, unsigned long long *slen,
                      const unsigned char *sk)
@@ -279,7 +279,7 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
   return 0;
 }
 
-int crypto_sign_update(unsigned char *m, unsigned long long mlen,
+int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
                        unsigned char *sts_bytes, unsigned long long *clen,
                        unsigned char *sig, unsigned long long *slen,
                        const unsigned char *sk)
@@ -424,7 +424,7 @@ int restore_subtree_root(unsigned char *m, unsigned long long *mlen,
   return 0;
 }
 
-int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
+int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
                           const unsigned char *sm, unsigned long long smlen,
                           const unsigned char *pk)
 {
@@ -492,4 +492,18 @@ int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
   }
 
   return 0;
+}
+
+// Also implement the standard API for signing messages
+int crypto_sign(unsigned char *sm, unsigned long long *smlen,
+                const unsigned char *m,unsigned long long mlen,
+                const unsigned char *sk)
+{
+  unsigned char sts[CRYPTO_STS_BYTES];
+  unsigned long long clen;
+
+  int res = crypto_sts_init(sts, &clen, sk, -1);
+  if(res != 0) return res;
+
+  return crypto_sign_full(m, mlen, sts, &clen, sm, smlen, sk);
 }

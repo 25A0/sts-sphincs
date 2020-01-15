@@ -245,7 +245,7 @@ int crypto_sts_init(unsigned char *sts_bytes, unsigned long long *clen,
   return 0;
 }
 
-int crypto_sign_full(unsigned char *m, unsigned long long mlen,
+int crypto_sign_full(const unsigned char *m, unsigned long long mlen,
                      unsigned char *sts_bytes, unsigned long long *clen,
                      unsigned char *sig, unsigned long long *slen,
                      const unsigned char *sk)
@@ -283,7 +283,7 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
   return 0;
 }
 
-int crypto_sign_update(unsigned char *m, unsigned long long mlen,
+int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
                        unsigned char *sts_bytes, unsigned long long *clen,
                        unsigned char *sig_bytes, unsigned long long *slen,
                        const unsigned char *sk)
@@ -415,9 +415,9 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
 // The body of this function is copied from sign.c. Since the signature
 // has the exact same structure as a classic SPHINCS signature, we
 // can use the exact same code.
-int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
-                          const unsigned char *sm, unsigned long long smlen,
-                          const unsigned char *pk)
+int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
+                     const unsigned char *sm, unsigned long long smlen,
+                     const unsigned char *pk)
 {
   unsigned long long i;
   unsigned long long leafidx=0;
@@ -504,4 +504,18 @@ fail:
     m[i] = 0;
   *mlen = -1;
   return -1;
+}
+
+// Also implement the standard API for signing messages
+int crypto_sign(unsigned char *sm, unsigned long long *smlen,
+                const unsigned char *m,unsigned long long mlen,
+                const unsigned char *sk)
+{
+  unsigned char sts[CRYPTO_STS_BYTES];
+  unsigned long long clen;
+
+  int res = crypto_sts_init(sts, &clen, sk, -1);
+  if(res != 0) return res;
+
+  return crypto_sign_full(m, mlen, sts, &clen, sm, smlen, sk);
 }

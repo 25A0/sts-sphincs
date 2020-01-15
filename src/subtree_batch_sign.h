@@ -40,6 +40,14 @@ typedef uint8_t TSUBTREE_IDX;
 
 int crypto_sign_keypair(unsigned char *pk, unsigned char *sk);
 
+int crypto_sign(unsigned char *sm, unsigned long long *smlen,
+                const unsigned char *m,unsigned long long mlen,
+                const unsigned char *sk);
+
+int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
+                     const unsigned char *sm, unsigned long long smlen,
+                     const unsigned char *pk);
+
 /* Initialize a new short-time state (STS) based on the given secret key.
  * If a negative value is passed as the subtree index (subtree_idx),
  * a random subtree will be used.
@@ -50,18 +58,15 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk);
 int crypto_sts_init(unsigned char *sts, unsigned long long *clen,
                         const unsigned char *sk, long long subtree_idx);
 
-int crypto_sign_full(unsigned char *m, unsigned long long mlen,
+int crypto_sign_full(const unsigned char *m, unsigned long long mlen,
                      unsigned char *sts, unsigned long long *clen,
                      unsigned char *sig, unsigned long long *slen,
                      const unsigned char *sk);
 
-int crypto_sign_update(unsigned char *m, unsigned long long mlen,
+int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
                        unsigned char *sts, unsigned long long *clen,
                        unsigned char *sig, unsigned long long *slen,
                        const unsigned char *sk);
 
-int crypto_sign_open_full(unsigned char *m, unsigned long long *mlen,
-                          const unsigned char *sm, unsigned long long smlen,
-                          const unsigned char *pk);
 
 #endif

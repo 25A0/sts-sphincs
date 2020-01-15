@@ -39,7 +39,7 @@ int test01()
   res = crypto_sign_full(message, mlen, sts, &clen, sm, &slen, sk);
   if(res != 0) return res;
 
-  res = crypto_sign_open_full(message, &mlen, sm, slen, pk);
+  res = crypto_sign_open(message, &mlen, sm, slen, pk);
 
   return res;
 }
@@ -80,8 +80,8 @@ int test02()
   if(!eq) return -2;
 
   // Both signatures should verify
-  res |= crypto_sign_open_full(message, &mlen, sm1, slen1, pk);
-  res |= crypto_sign_open_full(message, &mlen, sm2, slen2, pk) << 1;
+  res |= crypto_sign_open(message, &mlen, sm1, slen1, pk);
+  res |= crypto_sign_open(message, &mlen, sm2, slen2, pk) << 1;
 
   return res;
 }
@@ -134,6 +134,43 @@ int test04()
   return ! compare(sts_a, sts_b, clen_a);
 }
 
+int test05()
+{
+  unsigned char sk[CRYPTO_SECRETKEYBYTES];
+  unsigned char pk[CRYPTO_PUBLICKEYBYTES];
+
+  unsigned long long mlen = 32;
+  unsigned char message[mlen + CRYPTO_BYTES];
+  unsigned int i = 0;
+  message[i++] = 'H';
+  message[i++] = 'e';
+  message[i++] = 'l';
+  message[i++] = 'l';
+  message[i++] = 'o';
+  message[i++] = ' ';
+  message[i++] = 'W';
+  message[i++] = 'o';
+  message[i++] = 'r';
+  message[i++] = 'l';
+  message[i++] = 'd';
+  message[i++] = '!';
+  for (; i < mlen; ++i) { message[i] = 0; }
+  
+  unsigned char sm[CRYPTO_BYTES + mlen];
+
+  crypto_sign_keypair(pk, sk);
+
+  unsigned long long smlen;
+  crypto_sign(sm, &smlen,
+              message, mlen,
+              sk);
+
+  int res = crypto_sign_open(message, &mlen,
+                             sm, smlen,
+                             pk);
+  return res;
+}
+
 int main(int argc, char const *argv[])
 {
   int err = 0;
@@ -142,6 +179,7 @@ int main(int argc, char const *argv[])
   err |= run_test(&test02, "Test two SPHINCS batch signatures");
   err |= run_test(&test03, "Test that invalid subtree index is rejected");
   err |= run_test(&test04, "Test that STS is non-deterministic with chosen subtree index");
+  err |= run_test(&test05, "Test classic API with sequential batch signing");
 
   if(err)
   {

@@ -62,7 +62,7 @@ int bench()
   // Both signatures should verify
   {
     unsigned long start = GetCC();
-    res |= crypto_sign_open_full(message, &mlen, sm1, slen1, pk);
+    res |= crypto_sign_open(message, &mlen, sm1, slen1, pk);
     unsigned long end = GetCC();
     print_cycles("Verify", start, end);
   }
