@@ -30,7 +30,7 @@ int bench()
 
   printf("crypto_secretkeybytes: %d\n", CRYPTO_SECRETKEYBYTES);
   printf("crypto_publickeybytes: %d\n", CRYPTO_PUBLICKEYBYTES);
-  printf("crypto_contextbytes:   %d\n", CRYPTO_CONTEXTBYTES);
+  printf("crypto_sts_bytes:      %d\n", CRYPTO_STS_BYTES);
   printf("crypto_bytes:          %d\n", CRYPTO_BYTES);
 
   {
@@ -40,16 +40,16 @@ int bench()
     print_elapsed("Keypair", start, end);
   }
 
-  unsigned char context[CRYPTO_CONTEXTBYTES];
+  unsigned char sts[CRYPTO_STS_BYTES];
   unsigned long long clen;
 
   int res = 0;
   {
     unsigned long start = GetCC();
-    res |= crypto_context_init(context, &clen, sk, -1);
+    res |= crypto_sts_init(sts, &clen, sk, -1);
     if(res != 0) return res;
     unsigned long end = GetCC();
-    print_elapsed("Context init", start, end);
+    print_elapsed("STS init", start, end);
   }
 
   unsigned char sm1[CRYPTO_BYTES + mlen];
@@ -59,7 +59,7 @@ int bench()
     unsigned long start = GetCC();
     int i;
     for(i = 0; i < (1 << SUBTREE_HEIGHT); i++) {
-      res |= crypto_sign_full(message, mlen, context, &clen, sm1, &slen1, sk);
+      res |= crypto_sign_full(message, mlen, sts, &clen, sm1, &slen1, sk);
       if(res != 0) return res;
     }
     unsigned long end = GetCC();

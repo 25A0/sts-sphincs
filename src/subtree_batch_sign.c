@@ -12,7 +12,7 @@
 #include <string.h>
 #include <assert.h>
 
-struct batch_context{
+struct batch_sts{
   // The seed that produces the secret keys of the WOTS key pairs that form the
   // leaves of the short-time subtree
   unsigned char* subtree_sk_seed;
@@ -31,37 +31,37 @@ struct batch_context{
   unsigned char* horst_signature;
 
   // The N_LEVELS WOTS signatures that sign level_0_hash under the
-  // key pair that was used to generate this context
+  // key pair that was used to generate this sts
   unsigned char* wots_signatures;
 
 };
 
-const struct batch_context init_batch_context(unsigned char *bytes) {
-  struct batch_context context;
+const struct batch_sts init_batch_sts(unsigned char *bytes) {
+  struct batch_sts sts;
   int offset = 0;
 
-  context.subtree_sk_seed = bytes + offset;
+  sts.subtree_sk_seed = bytes + offset;
   offset += SEED_BYTES;
 
-  context.next_subtree_leafidx = (TSUBTREE_IDX*) (bytes + offset);
+  sts.next_subtree_leafidx = (TSUBTREE_IDX*) (bytes + offset);
   offset += sizeof(TSUBTREE_IDX);
 
-  context.wots_kps = bytes + offset;
+  sts.wots_kps = bytes + offset;
   offset += (1 << SUBTREE_HEIGHT) * HASH_BYTES;
 
-  context.leafidx = (unsigned long long*) (bytes + offset);
+  sts.leafidx = (unsigned long long*) (bytes + offset);
   offset += (TOTALTREE_HEIGHT+7)/8;
 
-  context.horst_signature = bytes + offset;
+  sts.horst_signature = bytes + offset;
   offset += STS_HORST_SIGBYTES;
 
-  context.wots_signatures = bytes + offset;
+  sts.wots_signatures = bytes + offset;
   offset += N_LEVELS * WOTS_SIGBYTES +
             (TOTALTREE_HEIGHT - SUBTREE_HEIGHT) * HASH_BYTES;
 
-  assert(offset == CRYPTO_CONTEXTBYTES);
+  assert(offset == CRYPTO_STS_BYTES);
 
-  return context;
+  return sts;
 }
 
 const unsigned char* get_public_seed_from_pk(const unsigned char* pk) {
@@ -112,15 +112,15 @@ const struct wots_config sts_wots_config = { STS_WOTS_L,
 // and speeds up signing and verification.
 const struct horst_config sts_horst_config = {STS_HORST_K, STS_HORST_SIGBYTES};
 
-static int increment_context(unsigned char *context_bytes)
+static int increment_sts(unsigned char *sts_bytes)
 {
-  struct batch_context context = init_batch_context(context_bytes);
+  struct batch_sts sts = init_batch_sts(sts_bytes);
 
   // Make sure that the next leafidx actually exists in the
   // short-time subtree
-  if(*context.next_subtree_leafidx < (1 << SUBTREE_HEIGHT)) {
+  if(*sts.next_subtree_leafidx < (1 << SUBTREE_HEIGHT)) {
     // Increment the leafidx that will be used for the next leaf
-    (*context.next_subtree_leafidx)++;
+    (*sts.next_subtree_leafidx)++;
     return 0;
   } else {
     return 1;
@@ -139,10 +139,10 @@ get_entropy(unsigned long long *out, const unsigned char *seed, int lseed)
   return 0;
 }
 
-int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
+int crypto_sts_init(unsigned char *sts_buffer, unsigned long long *clen,
                         const unsigned char *sk, long long user_leaf_idx)
 {
-  struct batch_context context = init_batch_context(context_buffer);
+  struct batch_sts sts = init_batch_sts(sts_buffer);
 
   unsigned long long rnd[8]; // buffer that holds random entropy
   int has_entropy = 0; // whether system entropy was already generated
@@ -161,7 +161,7 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
     if(err) return err;
     has_entropy = 1;
 
-    *context.leafidx = (rnd[next_unused_entropy++] &
+    *sts.leafidx = (rnd[next_unused_entropy++] &
                         (((unsigned long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)) - 1));
   } else if(user_leaf_idx < 0) {
     // Other negative leaf indices are considered an error.
@@ -172,7 +172,7 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
     // This index is not a valid subtree index.
     return -2;
   } else {
-    *context.leafidx = user_leaf_idx;
+    *sts.leafidx = user_leaf_idx;
   }
 
   // Generate a secret key to source the leaves of the short-time subtree
@@ -187,13 +187,13 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
   // from which the short-time subtree can be generated.
   assert(SEED_BYTES <= sizeof(unsigned long long) * (8 - next_unused_entropy));
 
-  // Store that secret key in the context
+  // Store that secret key in the sts
   assert(SEED_BYTES % sizeof(unsigned long long) == 0);
-  memcpy(context.subtree_sk_seed, rnd + next_unused_entropy, SEED_BYTES);
+  memcpy(sts.subtree_sk_seed, rnd + next_unused_entropy, SEED_BYTES);
   next_unused_entropy += SEED_BYTES / sizeof(unsigned long long);
 
-  // Initialize the context to use leaf 0 of the short-time subtree
-  *context.next_subtree_leafidx = (unsigned long) 0;
+  // Initialize the sts to use leaf 0 of the short-time subtree
+  *sts.next_subtree_leafidx = (unsigned long) 0;
 
   // Generate an address for this subtree
   unsigned char addr_bytes[ADDR_BYTES];
@@ -201,61 +201,61 @@ int crypto_context_init(unsigned char *context_buffer, unsigned long long *clen,
   struct hash_addr address = init_hash_addr(addr_bytes);
   set_type(addr_bytes, SPHINCS_ADDR);
   *address.subtree_layer = 0;
-  *address.subtree_address = *context.leafidx;
-  *address.subtree_node = *context.next_subtree_leafidx;
+  *address.subtree_address = *sts.leafidx;
+  *address.subtree_node = *sts.next_subtree_leafidx;
 
   // Build the root of the short-time subtree
   unsigned char root[HASH_BYTES];
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
   sts_tree_hash_conf(root,
-                     context.wots_kps,
+                     sts.wots_kps,
                      SUBTREE_HEIGHT,
-                     context.subtree_sk_seed,
+                     sts.subtree_sk_seed,
                      addr_bytes,
                      public_seed,
                      sts_wots_config);
   // Create signature for that root at the given leafidx
-  // And store that signature in the context
+  // And store that signature in the sts
   *address.subtree_layer = N_LEVELS; // special layer index for HORST
-  *address.subtree_address = *context.leafidx >> SUBTREE_HEIGHT;
-  *address.subtree_node = *context.leafidx % (1<<SUBTREE_HEIGHT);
+  *address.subtree_address = *sts.leafidx >> SUBTREE_HEIGHT;
+  *address.subtree_node = *sts.leafidx % (1<<SUBTREE_HEIGHT);
 
   unsigned long long horst_sigbytes;
   unsigned char seed[SEED_BYTES];
   get_seed(seed, sk, addr_bytes);
 
   unsigned char horst_root[HASH_BYTES];
-  horst_sign_conf(context.horst_signature, horst_root, &horst_sigbytes, seed,
+  horst_sign_conf(sts.horst_signature, horst_root, &horst_sigbytes, seed,
                   addr_bytes, root, HASH_BYTES, sts_horst_config);
 
   *address.subtree_layer = 1;
   *clen = 0;
 
   int err = sign_leaf(horst_root, N_LEVELS - 1,
-                      context.wots_signatures, clen,
+                      sts.wots_signatures, clen,
                       sk,
                       addr_bytes);
   if(err) return err;
 
-  *clen = CRYPTO_CONTEXTBYTES;
+  *clen = CRYPTO_STS_BYTES;
   return 0;
 }
 
 int crypto_sign_full(unsigned char *m, unsigned long long mlen,
-                     unsigned char *context_bytes, unsigned long long *clen,
+                     unsigned char *sts_bytes, unsigned long long *clen,
                      unsigned char *sig, unsigned long long *slen,
                      const unsigned char *sk)
 {
   unsigned char* sigp = sig;
-  struct batch_context context = init_batch_context(context_bytes);
+  struct batch_sts sts = init_batch_sts(sts_bytes);
 
   // Start off by writing the used leaf idx to the signature
-  memcpy(sigp, (unsigned char*) context.leafidx, sizeof(unsigned long long));
+  memcpy(sigp, (unsigned char*) sts.leafidx, sizeof(unsigned long long));
   sigp += sizeof(unsigned long long);
 
   // Do whatever needs to happen for crypto_sign_update
   *slen = 0;
-  int res = crypto_sign_update(m, mlen, context_bytes, clen, sigp, slen, sk);
+  int res = crypto_sign_update(m, mlen, sts_bytes, clen, sigp, slen, sk);
   if(res) {
     return res;
   }
@@ -265,10 +265,10 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
 
   // Copy the remaining SPHINCS signature to the signature buffer
 
-  memcpy(sigp, context.horst_signature, sts_horst_config.horst_sigbytes);
+  memcpy(sigp, sts.horst_signature, sts_horst_config.horst_sigbytes);
   sigp += sts_horst_config.horst_sigbytes;
 
-  memcpy(sigp, context.wots_signatures,
+  memcpy(sigp, sts.wots_signatures,
          (N_LEVELS -  1)*WOTS_SIGBYTES +
          (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)*HASH_BYTES);
   sigp += (N_LEVELS - 1)*WOTS_SIGBYTES +
@@ -280,23 +280,23 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
 }
 
 int crypto_sign_update(unsigned char *m, unsigned long long mlen,
-                       unsigned char *context_bytes, unsigned long long *clen,
+                       unsigned char *sts_bytes, unsigned long long *clen,
                        unsigned char *sig, unsigned long long *slen,
                        const unsigned char *sk)
 {
   unsigned char* sigp = sig;
-  struct batch_context context = init_batch_context(context_bytes);
+  struct batch_sts sts = init_batch_sts(sts_bytes);
 
-  // Get the current leafidx from the context
-  unsigned long subtree_leafidx = *context.next_subtree_leafidx;
+  // Get the current leafidx from the sts
+  unsigned long subtree_leafidx = *sts.next_subtree_leafidx;
 
   // Store the used leaf idx in the signature
   memcpy(sigp, (unsigned char*) &subtree_leafidx, sizeof(unsigned long));
   sigp += sizeof(unsigned long);
   *slen += sizeof(unsigned long);
 
-  // Update the context so that the next signature uses the following leafidx
-  int increment_res = increment_context(context_bytes);
+  // Update the sts so that the next signature uses the following leafidx
+  int increment_res = increment_sts(sts_bytes);
   if (increment_res) {
     return increment_res;
   }
@@ -307,13 +307,13 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   struct hash_addr address = init_hash_addr(addr_bytes);
   set_type(addr_bytes, SPHINCS_ADDR);
   *address.subtree_layer = 0;
-  *address.subtree_address = *context.leafidx;
+  *address.subtree_address = *sts.leafidx;
   *address.subtree_node = subtree_leafidx;
 
   unsigned char seed[SEED_BYTES];
   // Note that the WOTS seed is generated from the seed stored in the short-time
-  // context, and not from the secret key.
-  get_seed(seed, context.subtree_sk_seed, addr_bytes);
+  // sts, and not from the secret key.
+  get_seed(seed, sts.subtree_sk_seed, addr_bytes);
 
   // The message hash seed depends on the seed in the secret key, and the seed
   // that determines the WOTS keypairs in the short-time subtree. Note that the
@@ -356,8 +356,8 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // secret key. This is so that WOTS key pairs can be generated based on
   // that seed, rather than the secret key. Otherwise the key pairs
   // would be the same for each short-time state.
-  compute_authpath(m_h, sigp, addr_bytes, context.wots_kps,
-                   context.subtree_sk_seed, SUBTREE_HEIGHT, public_seed);
+  compute_authpath(m_h, sigp, addr_bytes, sts.wots_kps,
+                   sts.subtree_sk_seed, SUBTREE_HEIGHT, public_seed);
   sigp += SUBTREE_HEIGHT*HASH_BYTES;
   *slen += SUBTREE_HEIGHT*HASH_BYTES;
 

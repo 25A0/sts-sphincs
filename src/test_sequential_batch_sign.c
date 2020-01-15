@@ -27,16 +27,16 @@ int test01()
 
   crypto_sign_keypair(pk, sk);
 
-  unsigned char context[CRYPTO_CONTEXTBYTES];
+  unsigned char sts[CRYPTO_STS_BYTES];
   unsigned long long clen;
 
-  int res = crypto_context_init(context, &clen, sk, -1);
+  int res = crypto_sts_init(sts, &clen, sk, -1);
   if(res != 0) return res;
 
   unsigned char sm[CRYPTO_BYTES + mlen];
 
   unsigned long long slen;
-  res = crypto_sign_full(message, mlen, context, &clen, sm, &slen, sk);
+  res = crypto_sign_full(message, mlen, sts, &clen, sm, &slen, sk);
   if(res != 0) return res;
 
   res = crypto_sign_open_full(message, &mlen, sm, slen, pk);
@@ -55,11 +55,11 @@ int test02()
 
   crypto_sign_keypair(pk, sk);
 
-  unsigned char context[CRYPTO_CONTEXTBYTES];
+  unsigned char sts[CRYPTO_STS_BYTES];
   unsigned long long clen;
 
   int res = 0;
-  res |= crypto_context_init(context, &clen, sk, -1);
+  res |= crypto_sts_init(sts, &clen, sk, -1);
   if(res != 0) return res;
 
   unsigned char sm1[CRYPTO_BYTES + mlen];
@@ -67,9 +67,9 @@ int test02()
   unsigned char sm2[CRYPTO_BYTES + mlen];
   unsigned long long slen2;
 
-  res |= crypto_sign_full(message, mlen, context, &clen, sm1, &slen1, sk);
+  res |= crypto_sign_full(message, mlen, sts, &clen, sm1, &slen1, sk);
   if(res != 0) return res;
-  res |= crypto_sign_full(message, mlen, context, &clen, sm2, &slen2, sk);
+  res |= crypto_sign_full(message, mlen, sts, &clen, sm2, &slen2, sk);
   if(res != 0) return res;
 
   // The length of both signatures should be the same
@@ -93,14 +93,14 @@ int test03()
 
   crypto_sign_keypair(pk, sk);
 
-  unsigned char context[CRYPTO_CONTEXTBYTES];
+  unsigned char sts[CRYPTO_STS_BYTES];
   unsigned long long clen;
 
   // This number is exactly 1 larger than the largest valid subtree index
   long long subtree_idx = (long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT);
 
   int res = 0;
-  res |= crypto_context_init(context, &clen, sk, subtree_idx);
+  res |= crypto_sts_init(sts, &clen, sk, subtree_idx);
   // Since we passed an invalid subtree index, we expect the result to be
   // negative.
   if(res >= 0) return -1;
@@ -114,9 +114,9 @@ int test04()
 
   crypto_sign_keypair(pk, sk);
 
-  unsigned char context_a[CRYPTO_CONTEXTBYTES];
+  unsigned char sts_a[CRYPTO_STS_BYTES];
   unsigned long long clen_a;
-  unsigned char context_b[CRYPTO_CONTEXTBYTES];
+  unsigned char sts_b[CRYPTO_STS_BYTES];
   unsigned long long clen_b;
 
   // A random, but valid subtree index
@@ -124,12 +124,12 @@ int test04()
   long long subtree_idx = randomint(0, upper);
 
   int res = 0;
-  res |= crypto_context_init(context_a, &clen_a, sk, subtree_idx);
+  res |= crypto_sts_init(sts_a, &clen_a, sk, subtree_idx);
   if(res != 0) return -1;
-  res |= crypto_context_init(context_b, &clen_b, sk, subtree_idx);
+  res |= crypto_sts_init(sts_b, &clen_b, sk, subtree_idx);
   if(res != 0) return -1;
   if(clen_a != clen_b) return -1;
-  return compare(context_a, context_b, clen_a);
+  return compare(sts_a, sts_b, clen_a);
 }
 
 int test05()
@@ -139,20 +139,20 @@ int test05()
 
   crypto_sign_keypair(pk, sk);
 
-  unsigned char context_a[CRYPTO_CONTEXTBYTES];
+  unsigned char sts_a[CRYPTO_STS_BYTES];
   unsigned long long clen_a;
-  unsigned char context_b[CRYPTO_CONTEXTBYTES];
+  unsigned char sts_b[CRYPTO_STS_BYTES];
   unsigned long long clen_b;
 
   int res = 0;
-  res |= crypto_context_init(context_a, &clen_a, sk, -1);
+  res |= crypto_sts_init(sts_a, &clen_a, sk, -1);
   if(res != 0) return -1;
-  res |= crypto_context_init(context_b, &clen_b, sk, -1);
+  res |= crypto_sts_init(sts_b, &clen_b, sk, -1);
   if(res != 0) return -1;
   if(clen_a != clen_b) return -1;
-  // Since we chose a random subtree each time, the context should not
+  // Since we chose a random subtree each time, the STS should not
   // be the same.
-  return ! compare(context_a, context_b, clen_a);
+  return ! compare(sts_a, sts_b, clen_a);
 }
 
 int main(int argc, char const *argv[])
@@ -162,8 +162,8 @@ int main(int argc, char const *argv[])
   err |= run_test(&test01, "Test SPHINCS batch signing and verifying");
   err |= run_test(&test02, "Test two SPHINCS batch signatures");
   err |= run_test(&test03, "Test that invalid subtree index is rejected");
-  err |= run_test(&test04, "Test that context is deterministic with chosen subtree index");
-  err |= run_test(&test05, "Test that context is non-deterministic with random subtree index");
+  err |= run_test(&test04, "Test that STS is deterministic with chosen subtree index");
+  err |= run_test(&test05, "Test that STS is non-deterministic with random subtree index");
 
   if(err)
   {

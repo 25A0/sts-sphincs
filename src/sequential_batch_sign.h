@@ -11,30 +11,30 @@
                       TOTALTREE_HEIGHT*HASH_BYTES)
 #define CRYPTO_DETERMINISTIC 1
 
-#define CRYPTO_CONTEXTBYTES ((TOTALTREE_HEIGHT+7)/8 +          \
+#define CRYPTO_STS_BYTES    ((TOTALTREE_HEIGHT+7)/8 +                   \
                              (1 << SUBTREE_HEIGHT) * HASH_BYTES +       \
                              (N_LEVELS - 1) * (WOTS_SIGBYTES + \
                                                SUBTREE_HEIGHT * HASH_BYTES))
 
 int crypto_sign_keypair(unsigned char *pk, unsigned char *sk);
 
-/* Initialize a new context based on the given secret key.
+/* Initialize a new short-time state (STS) based on the given secret key.
  * If a negative value is passed as the subtree index (subtree_idx),
  * a random subtree will be used.
  * If a subtree index between 0 and 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)
  * is passed, then that index will be used. The initialization will fail
  * with values larger than 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT).
  */
-int crypto_context_init(unsigned char *context, unsigned long long *clen,
+int crypto_sts_init(unsigned char *sts, unsigned long long *clen,
                         const unsigned char *sk, long long subtree_idx);
 
 int crypto_sign_full(unsigned char *m, unsigned long long mlen,
-                     unsigned char *context, unsigned long long *clen,
+                     unsigned char *sts, unsigned long long *clen,
                      unsigned char *sig, unsigned long long *slen,
                      const unsigned char *sk);
 
 int crypto_sign_update(unsigned char *m, unsigned long long mlen,
-                       unsigned char *context, unsigned long long *clen,
+                       unsigned char *sts, unsigned long long *clen,
                        unsigned char *sig, unsigned long long *slen,
                        const unsigned char *sk);
 

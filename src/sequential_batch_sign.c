@@ -21,7 +21,7 @@
 #error "TOTALTREE_HEIGHT-SUBTREE_HEIGHT must be at most 64" 
 #endif
 
-struct batch_context{
+struct batch_sts{
   // The leaf index that should be used for the next signature
   unsigned long long* next_leafidx;
 
@@ -29,23 +29,23 @@ struct batch_context{
   unsigned char* wots_pks;
 
   // The N_LEVELS-1 WOTS signatures that sign the hash of the subtree on level
-  // 0 under the key pair that was used to generate this context
+  // 0 under the key pair that was used to generate this sts
   unsigned char* signatures;
 };
 
-const struct batch_context init_batch_context(unsigned char* bytes) {
-  struct batch_context context;
+const struct batch_sts init_batch_sts(unsigned char* bytes) {
+  struct batch_sts sts;
   int offset = 0;
 
-  context.next_leafidx = (unsigned long long*) bytes + offset;
+  sts.next_leafidx = (unsigned long long*) bytes + offset;
   offset += (TOTALTREE_HEIGHT+7)/8;
 
-  context.wots_pks = bytes + offset;
+  sts.wots_pks = bytes + offset;
   offset += (1 << SUBTREE_HEIGHT) * HASH_BYTES;
 
-  context.signatures = bytes + offset;
+  sts.signatures = bytes + offset;
 
-  return context;
+  return sts;
 }
 
 struct signature {
@@ -138,12 +138,12 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
  * Increment whatever identifier determines which leaf is used to sign
  * the next message
  */
-static int increment_context(unsigned char *context_bytes) {
-  struct batch_context context = init_batch_context(context_bytes);
+static int increment_sts(unsigned char *sts_bytes) {
+  struct batch_sts sts = init_batch_sts(sts_bytes);
 
   // Increment the leafidx that indicates which leaf should be used
   // to sign the message
-  unsigned long long leafidx = *context.next_leafidx;
+  unsigned long long leafidx = *sts.next_leafidx;
 
   // Check for the sentinel value that indicates that the end of the subtree
   // was reached with the last signature
@@ -166,13 +166,13 @@ static int increment_context(unsigned char *context_bytes) {
     leafidx += 1;
   }
 
-  // Write new leafidx to context
-  *context.next_leafidx = leafidx;
+  // Write new leafidx to sts
+  *sts.next_leafidx = leafidx;
 
   return 0;
 }
 
-int crypto_context_init(unsigned char *context_bytes, unsigned long long *clen,
+int crypto_sts_init(unsigned char *sts_bytes, unsigned long long *clen,
                         const unsigned char *sk, long long subtree_idx)
 {
   *clen = 0;
@@ -209,16 +209,16 @@ int crypto_context_init(unsigned char *context_bytes, unsigned long long *clen,
     leafidx = subtree_idx << SUBTREE_HEIGHT;
   }
 
-  struct batch_context context = init_batch_context(context_bytes);
+  struct batch_sts sts = init_batch_sts(sts_bytes);
 
   // ==============================================================
-  // Write the current leafidx to the context
+  // Write the current leafidx to the sts
   // ==============================================================
-  *context.next_leafidx = leafidx;
+  *sts.next_leafidx = leafidx;
   *clen += (TOTALTREE_HEIGHT+7)/8;
 
   // ==============================================================
-  // Construct the hash of the lowest tree, write it to the context
+  // Construct the hash of the lowest tree, write it to the sts
   // ==============================================================
 
   // This address points to the subtree described by leafidx
@@ -232,45 +232,45 @@ int crypto_context_init(unsigned char *context_bytes, unsigned long long *clen,
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
   unsigned char level_0_hash[HASH_BYTES];
   // Compute root of lowest tree and WOTS public keys in the same pass
-  sts_tree_hash_conf(level_0_hash, context.wots_pks, SUBTREE_HEIGHT, sk,
+  sts_tree_hash_conf(level_0_hash, sts.wots_pks, SUBTREE_HEIGHT, sk,
                      address_bytes, public_seed, default_wots_config);
 
   // ==============================================================
-  // Write the upper N_LEVELS - 1 WOTS signatures to the context
+  // Write the upper N_LEVELS - 1 WOTS signatures to the sts
   // ==============================================================
   set_type(address_bytes, SPHINCS_ADDR);
   parent(SUBTREE_HEIGHT, address);
-  sign_leaf(level_0_hash, N_LEVELS - 1, context.signatures, clen, sk, address_bytes);
+  sign_leaf(level_0_hash, N_LEVELS - 1, sts.signatures, clen, sk, address_bytes);
 
   return 0;
 }
 
 int crypto_sign_full(unsigned char *m, unsigned long long mlen,
-                     unsigned char *context_bytes, unsigned long long *clen,
+                     unsigned char *sts_bytes, unsigned long long *clen,
                      unsigned char *sig, unsigned long long *slen,
                      const unsigned char *sk)
 {
   unsigned char* sigp = sig;
   *slen = 0;
-  struct batch_context context = init_batch_context(context_bytes);
+  struct batch_sts sts = init_batch_sts(sts_bytes);
 
   // ==============================================================
   // Do whatever we do when we update a signature
   // ==============================================================
   unsigned long long uslen = 0;
-  crypto_sign_update(m, mlen, context_bytes, clen, sigp, &uslen, sk);
+  crypto_sign_update(m, mlen, sts_bytes, clen, sigp, &uslen, sk);
   sigp += uslen;
   *slen += uslen;
 
   // ==============================================================
-  // Copy remaining signatures from context
+  // Copy remaining signatures from sts
   // ==============================================================
 
   // Copy the WOTS signatures and auth paths for the upper N_LEVELS - 1
   // levels to the signature.
   // We assume that the sig pointer has been shifted forwards while
   // crypto_sign_update has written to it.
-  memcpy(sigp, context.signatures,
+  memcpy(sigp, sts.signatures,
          (N_LEVELS - 1) * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES));
   sigp += (N_LEVELS - 1) * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES);
   *slen += (N_LEVELS - 1) * (WOTS_SIGBYTES + SUBTREE_HEIGHT * HASH_BYTES);
@@ -284,7 +284,7 @@ int crypto_sign_full(unsigned char *m, unsigned long long mlen,
 }
 
 int crypto_sign_update(unsigned char *m, unsigned long long mlen,
-                       unsigned char *context_bytes, unsigned long long *clen,
+                       unsigned char *sts_bytes, unsigned long long *clen,
                        unsigned char *sig_bytes, unsigned long long *slen,
                        const unsigned char *sk)
 {
@@ -295,11 +295,11 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   for(i=0;i<CRYPTO_SECRETKEYBYTES;i++)
     tsk[i] = sk[i];
 
-  struct batch_context context = init_batch_context(context_bytes);
+  struct batch_sts sts = init_batch_sts(sts_bytes);
   struct signature sig = init_signature(sig_bytes);
 
-  // Read leafidx from updated context
-  unsigned long long leafidx = *context.next_leafidx;
+  // Read leafidx from updated sts
+  unsigned long long leafidx = *sts.next_leafidx;
 
   // ==========================================================================
   // Calculate and copy the message hash seed to the beginning of the signature
@@ -333,7 +333,7 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   // Update leafidx. Return if we're out of leaves
   // ==============================================================
 
-  int res = increment_context(context_bytes);
+  int res = increment_sts(sts_bytes);
   if(res != 0) return res;
 
   // Write used leafidx to signature
@@ -397,7 +397,7 @@ int crypto_sign_update(unsigned char *m, unsigned long long mlen,
   sig_bytes += WOTS_SIGBYTES;
   *slen += WOTS_SIGBYTES;
 
-  compute_authpath(root, sig_bytes,address_bytes, context.wots_pks, sk,
+  compute_authpath(root, sig_bytes,address_bytes, sts.wots_pks, sk,
                    SUBTREE_HEIGHT, public_seed);
 
   sig_bytes += SUBTREE_HEIGHT*HASH_BYTES;
