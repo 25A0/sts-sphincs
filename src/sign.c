@@ -71,11 +71,11 @@ read_ull(unsigned char* buf, const unsigned int bytes) {
   return res;
 }
 
-inline const unsigned char* get_public_seed_from_pk(const unsigned char* pk) {
+const unsigned char* get_public_seed_from_pk(const unsigned char* pk) {
   return pk + HASH_BYTES;
 }
 
-inline const unsigned char* get_public_seed_from_sk(const unsigned char* sk) {
+const unsigned char* get_public_seed_from_sk(const unsigned char* sk) {
   return sk + SEED_BYTES;
 }
 

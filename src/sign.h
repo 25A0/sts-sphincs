@@ -21,8 +21,4 @@ int crypto_sign_open(unsigned char *m,unsigned long long *mlen,
                      const unsigned char *sm,unsigned long long smlen,
                      const unsigned char *pk);
 
-const unsigned char* get_public_seed_from_pk(const unsigned char* pk);
-
-const unsigned char* get_public_seed_from_sk(const unsigned char* sk);
-
 #endif
