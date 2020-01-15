@@ -48,6 +48,10 @@ ${BENCHS}: benchutils.o testutils.o $$@.o
 ${TESTS}: testutils.o $$@.o
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
+example_subtree:    example_subtree.c libsphincs_subtree.a
+example_sequential: example_sequential.c libsphincs_sequential.a
+example_no_batch:   example_no_batch.c libsphincs.a
+
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCDIRS) -c $^ -o $@
 
