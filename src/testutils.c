@@ -28,6 +28,16 @@ int run_test(int (*test_fun)(void), char* description)
   return err;
 }
 
+int run_bench(int (*test_fun)(void), char* description)
+{
+  printf("%s\n", description);
+  int err = (*test_fun)();
+  if(err) {
+    printf("Fail in: %s: %d\n", description, err);
+  }
+  return err;
+}
+
 /*
  * Picks and returns a random integer between lower (including) and
  * upper (excluding). DON'T USE THIS IF YOU NEED YOUR RANDOM NUMBERS

@@ -66,7 +66,7 @@ int main(int argc, char const *argv[])
 {
   int err = 0;
 
-  err |= run_test(&bench, "Benchmark SPHINCS signatures");
+  err |= run_bench(&bench, "Benchmark SPHINCS signatures");
 
   if(err)
   {

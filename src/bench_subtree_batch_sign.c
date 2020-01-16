@@ -77,7 +77,7 @@ int main(int argc, char const *argv[])
 {
   int err = 0;
 
-  err |= run_test(&bench, "Benchmark SPHINCS subtree batch signatures");
+  err |= run_bench(&bench, "Benchmark SPHINCS subtree batch signatures");
 
   if(err)
   {
