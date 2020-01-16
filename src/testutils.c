@@ -16,10 +16,14 @@ int compare(unsigned char *x, unsigned char *y, unsigned long long l)
 
 int run_test(int (*test_fun)(void), char* description)
 {
-  printf("Running %s...\n", description);
+  printf("%-73s", description);
+  fflush(stdout);
   int err = (*test_fun)();
   if(err) {
+    printf("FAILED\n");
     printf("Fail in: %s: %d\n", description, err);
+  } else {
+    printf("PASSED\n");
   }
   return err;
 }
