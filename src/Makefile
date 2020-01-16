@@ -43,6 +43,9 @@ test_chacha12: chacha12.o randombytes.o
 # All tests and benchmarks need the object file of the same name, as well as
 # testutils.o
 .SECONDEXPANSION:
+
+bench_wots: ${SPHINCS}
+
 ${BENCHS}: benchutils.o $$@.o
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
 
