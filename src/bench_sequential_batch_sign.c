@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "sequential_batch_sign.h"
-#include "testutils.h"
 #include "benchutils.h"
 #include "randombytes.h"
 

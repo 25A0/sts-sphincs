@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "subtree_batch_sign.h"
-#include "testutils.h"
 #include "benchutils.h"
 #include "randombytes.h"
 
