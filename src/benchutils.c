@@ -12,7 +12,7 @@ int run_bench(int (*test_fun)(void), char* description)
 
 void print_cycles(const char* desc, unsigned long start, unsigned long end)
 {
-  int cycle_width = 60;
+  int cycle_width = 40;
   unsigned char bar[cycle_width];
   unsigned char clear[cycle_width];
   int i = 0;
