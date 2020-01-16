@@ -1,11 +1,12 @@
 TESTS := $(shell find . -type f -name "test_*.c" | sed -e 's/.c$$//g')
 BENCHS := $(shell find . -type f -name "bench_*.c" | sed -e 's/.c$$//g')
+EXAMPLES := example example_sequential example_subtree
 
 BOLD := $(shell tput bold)
 RED := $(shell tput setaf 1)
 NORMAL := $(shell tput sgr0)
 
-all: libsphincs.a ${TESTS}
+all: libsphincs.a libsphincs_sequential.a libsphincs_subtree.a ${TESTS} ${BENCHS} ${EXAMPLES}
 
 INCDIRS=-I. -I./include
 CFLAGS=-g -Wall
