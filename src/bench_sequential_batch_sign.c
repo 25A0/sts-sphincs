@@ -51,7 +51,7 @@ int bench()
     int i;
     for(i = 0; i < (1 << SUBTREE_HEIGHT); i++) {
       slen = 0;
-      res |= crypto_sts_sign(message, mlen, sts, sm, &slen, sk);
+      res |= crypto_sts_sign(sm, &slen, message, mlen, sts, sk);
       if(res != 0) return res;
     }
     unsigned long end = GetCC();

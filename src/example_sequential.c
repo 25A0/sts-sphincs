@@ -23,7 +23,7 @@ int main(int nargs, char** args)
   unsigned long long slen;
 
   // Sign the message
-  res = crypto_sts_sign(message, mlen, sts, sm, &slen, sk);
+  res = crypto_sts_sign(sm, &slen, message, mlen, sts, sk);
   if(res != 0) return res;
 
   // Verify the signature

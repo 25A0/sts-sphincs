@@ -383,9 +383,9 @@ int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
   return 0;
 }
 
-int crypto_sts_sign(const unsigned char *m, unsigned long long mlen,
+int crypto_sts_sign(unsigned char *sig, unsigned long long *slen,
+                    const unsigned char *m, unsigned long long mlen,
                     unsigned char *sts_bytes,
-                    unsigned char *sig, unsigned long long *slen,
                     const unsigned char *sk)
 {
   unsigned char* sigp = sig;
@@ -525,5 +525,5 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
   int res = crypto_sts_init(sts, sk, -1);
   if(res != 0) return res;
 
-  return crypto_sts_sign(m, mlen, sts, sm, smlen, sk);
+  return crypto_sts_sign(sm, smlen, m, mlen, sts, sk);
 }
