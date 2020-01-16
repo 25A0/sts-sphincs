@@ -55,7 +55,13 @@ int bench()
       if(res != 0) return res;
     }
     unsigned long end = GetCC();
-    print_cycles("Sign", start, end);
+    char desc[24];
+    snprintf(desc, sizeof(desc), "Sign, %d signatures", 1<<SUBTREE_HEIGHT);
+    print_cycles(desc, start, end);
+    // Print an average cycle count per signature
+    unsigned long total = end - start;
+    double avg = (double) total / (double)(1<<SUBTREE_HEIGHT);
+    print_cycles("Sign, avg per signature", start, start + avg);
   }
 
   // Both signatures should verify
