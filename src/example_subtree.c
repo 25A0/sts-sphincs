@@ -14,17 +14,16 @@ int main(int nargs, char** args)
   for (; i < mlen; ++i) { message[i] = i; }
 
   unsigned char sts[CRYPTO_STS_BYTES];
-  unsigned long long clen;
 
   // Initialize the short-term state
-  int res = crypto_sts_init(sts, &clen, sk, -1);
+  int res = crypto_sts_init(sts, sk, -1);
   if(res != 0) return res;
 
   unsigned char sm[CRYPTO_BYTES + mlen];
   unsigned long long slen;
 
   // Sign the message
-  res = crypto_sts_sign(message, mlen, sts, &clen, sm, &slen, sk);
+  res = crypto_sts_sign(message, mlen, sts, sm, &slen, sk);
   if(res != 0) return res;
 
   // Verify the signature

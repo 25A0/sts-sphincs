@@ -33,12 +33,11 @@ int bench()
   }
 
   unsigned char sts[CRYPTO_STS_BYTES];
-  unsigned long long clen;
 
   int res = 0;
   {
     unsigned long start = GetCC();
-    res |= crypto_sts_init(sts, &clen, sk, -1);
+    res |= crypto_sts_init(sts, sk, -1);
     if(res != 0) return res;
     unsigned long end = GetCC();
     print_cycles("STS init", start, end);
@@ -52,7 +51,7 @@ int bench()
     int i;
     for(i = 0; i < (1 << SUBTREE_HEIGHT); i++) {
       slen = 0;
-      res |= crypto_sts_sign(message, mlen, sts, &clen, sm, &slen, sk);
+      res |= crypto_sts_sign(message, mlen, sts, sm, &slen, sk);
       if(res != 0) return res;
     }
     unsigned long end = GetCC();

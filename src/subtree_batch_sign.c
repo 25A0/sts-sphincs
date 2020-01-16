@@ -139,8 +139,7 @@ get_entropy(unsigned long long *out, const unsigned char *seed, int lseed)
   return 0;
 }
 
-int crypto_sts_init(unsigned char *sts_buffer, unsigned long long *clen,
-                        const unsigned char *sk, long long user_leaf_idx)
+int crypto_sts_init(unsigned char *sts_buffer, const unsigned char *sk, long long user_leaf_idx)
 {
   struct batch_sts sts = init_batch_sts(sts_buffer);
 
@@ -229,15 +228,14 @@ int crypto_sts_init(unsigned char *sts_buffer, unsigned long long *clen,
                   addr_bytes, root, HASH_BYTES, sts_horst_config);
 
   *address.subtree_layer = 1;
-  *clen = 0;
+  unsigned long long clen = 0;
 
   int err = sign_leaf(horst_root, N_LEVELS - 1,
-                      sts.wots_signatures, clen,
+                      sts.wots_signatures, &clen,
                       sk,
                       addr_bytes);
   if(err) return err;
 
-  *clen = CRYPTO_STS_BYTES;
   return 0;
 }
 
@@ -249,7 +247,7 @@ long long crypto_sts_remaining_uses(unsigned char *sts_bytes)
 }
 
 int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
-                       unsigned char *sts_bytes, unsigned long long *clen,
+                       unsigned char *sts_bytes,
                        unsigned char *sig, unsigned long long *slen,
                        const unsigned char *sk)
 {
@@ -334,7 +332,7 @@ int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
 }
 
 int crypto_sts_sign(const unsigned char *m, unsigned long long mlen,
-                    unsigned char *sts_bytes, unsigned long long *clen,
+                    unsigned char *sts_bytes,
                     unsigned char *sig, unsigned long long *slen,
                     const unsigned char *sk)
 {
@@ -347,7 +345,7 @@ int crypto_sts_sign(const unsigned char *m, unsigned long long mlen,
 
   // Do whatever needs to happen for crypto_sign_update
   *slen = 0;
-  int res = crypto_sign_update(m, mlen, sts_bytes, clen, sigp, slen, sk);
+  int res = crypto_sign_update(m, mlen, sts_bytes, sigp, slen, sk);
   if(res) {
     return res;
   }
@@ -507,10 +505,9 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
                 const unsigned char *sk)
 {
   unsigned char sts[CRYPTO_STS_BYTES];
-  unsigned long long clen;
 
-  int res = crypto_sts_init(sts, &clen, sk, -1);
+  int res = crypto_sts_init(sts, sk, -1);
   if(res != 0) return res;
 
-  return crypto_sts_sign(m, mlen, sts, &clen, sm, smlen, sk);
+  return crypto_sts_sign(m, mlen, sts, sm, smlen, sk);
 }

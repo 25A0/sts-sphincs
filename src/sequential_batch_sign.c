@@ -172,10 +172,9 @@ static int increment_sts(unsigned char *sts_bytes) {
   return 0;
 }
 
-int crypto_sts_init(unsigned char *sts_bytes, unsigned long long *clen,
-                        const unsigned char *sk, long long subtree_idx)
+int crypto_sts_init(unsigned char *sts_bytes, const unsigned char *sk, long long subtree_idx)
 {
-  *clen = 0;
+  unsigned long long clen = 0;
 
   unsigned long long leafidx;
   // If the subtree index is -1 then we choose a random subtree, otherewise
@@ -215,7 +214,7 @@ int crypto_sts_init(unsigned char *sts_bytes, unsigned long long *clen,
   // Write the current leafidx to the sts
   // ==============================================================
   *sts.next_leafidx = leafidx;
-  *clen += (TOTALTREE_HEIGHT+7)/8;
+  clen += (TOTALTREE_HEIGHT+7)/8;
 
   // ==============================================================
   // Construct the hash of the lowest tree, write it to the sts
@@ -240,7 +239,7 @@ int crypto_sts_init(unsigned char *sts_bytes, unsigned long long *clen,
   // ==============================================================
   set_type(address_bytes, SPHINCS_ADDR);
   parent(SUBTREE_HEIGHT, address);
-  sign_leaf(level_0_hash, N_LEVELS - 1, sts.signatures, clen, sk, address_bytes);
+  sign_leaf(level_0_hash, N_LEVELS - 1, sts.signatures, &clen, sk, address_bytes);
 
   return 0;
 }
@@ -256,7 +255,7 @@ long long crypto_sts_remaining_uses(unsigned char *sts_bytes)
 }
 
 int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
-                       unsigned char *sts_bytes, unsigned long long *clen,
+                       unsigned char *sts_bytes,
                        unsigned char *sig_bytes, unsigned long long *slen,
                        const unsigned char *sk)
 {
@@ -385,7 +384,7 @@ int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
 }
 
 int crypto_sts_sign(const unsigned char *m, unsigned long long mlen,
-                    unsigned char *sts_bytes, unsigned long long *clen,
+                    unsigned char *sts_bytes,
                     unsigned char *sig, unsigned long long *slen,
                     const unsigned char *sk)
 {
@@ -397,7 +396,7 @@ int crypto_sts_sign(const unsigned char *m, unsigned long long mlen,
   // Do whatever we do when we update a signature
   // ==============================================================
   unsigned long long uslen = 0;
-  crypto_sign_update(m, mlen, sts_bytes, clen, sigp, &uslen, sk);
+  crypto_sign_update(m, mlen, sts_bytes, sigp, &uslen, sk);
   sigp += uslen;
   *slen += uslen;
 
@@ -522,10 +521,9 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
                 const unsigned char *sk)
 {
   unsigned char sts[CRYPTO_STS_BYTES];
-  unsigned long long clen;
 
-  int res = crypto_sts_init(sts, &clen, sk, -1);
+  int res = crypto_sts_init(sts, sk, -1);
   if(res != 0) return res;
 
-  return crypto_sts_sign(m, mlen, sts, &clen, sm, smlen, sk);
+  return crypto_sts_sign(m, mlen, sts, sm, smlen, sk);
 }

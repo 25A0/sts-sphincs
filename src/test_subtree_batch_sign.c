@@ -28,15 +28,14 @@ int test01()
   crypto_sign_keypair(pk, sk);
 
   unsigned char sts[CRYPTO_STS_BYTES];
-  unsigned long long clen;
 
-  int res = crypto_sts_init(sts, &clen, sk, -1);
+  int res = crypto_sts_init(sts, sk, -1);
   if(res != 0) return res;
 
   unsigned char sm[CRYPTO_BYTES + mlen];
 
   unsigned long long slen;
-  res = crypto_sts_sign(message, mlen, sts, &clen, sm, &slen, sk);
+  res = crypto_sts_sign(message, mlen, sts, sm, &slen, sk);
   if(res != 0) return res;
 
   res = crypto_sign_open(message, &mlen, sm, slen, pk);
@@ -56,10 +55,9 @@ int test02()
   crypto_sign_keypair(pk, sk);
 
   unsigned char sts[CRYPTO_STS_BYTES];
-  unsigned long long clen;
 
   int res = 0;
-  res |= crypto_sts_init(sts, &clen, sk, -1);
+  res |= crypto_sts_init(sts, sk, -1);
   if(res != 0) return res;
 
   unsigned char sm1[CRYPTO_BYTES + mlen];
@@ -67,9 +65,9 @@ int test02()
   unsigned char sm2[CRYPTO_BYTES + mlen];
   unsigned long long slen2;
 
-  res |= crypto_sts_sign(message, mlen, sts, &clen, sm1, &slen1, sk);
+  res |= crypto_sts_sign(message, mlen, sts, sm1, &slen1, sk);
   if(res != 0) return res;
-  res |= crypto_sts_sign(message, mlen, sts, &clen, sm2, &slen2, sk);
+  res |= crypto_sts_sign(message, mlen, sts, sm2, &slen2, sk);
   if(res != 0) return res;
 
   // The length of both signatures should be the same
@@ -94,13 +92,12 @@ int test03()
   crypto_sign_keypair(pk, sk);
 
   unsigned char sts[CRYPTO_STS_BYTES];
-  unsigned long long clen;
 
   // This number is exactly 1 larger than the largest valid subtree index
   long long subtree_idx = (long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT);
 
   int res = 0;
-  res |= crypto_sts_init(sts, &clen, sk, subtree_idx);
+  res |= crypto_sts_init(sts, sk, subtree_idx);
   // Since we passed an invalid subtree index, we expect the result to be
   // negative.
   if(res >= 0) return -1;
@@ -115,23 +112,20 @@ int test04()
   crypto_sign_keypair(pk, sk);
 
   unsigned char sts_a[CRYPTO_STS_BYTES];
-  unsigned long long clen_a;
   unsigned char sts_b[CRYPTO_STS_BYTES];
-  unsigned long long clen_b;
 
   // A random, but valid subtree index
   long long upper = (long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT);
   long long subtree_idx = randomint(0, upper);
 
   int res = 0;
-  res |= crypto_sts_init(sts_a, &clen_a, sk, subtree_idx);
+  res |= crypto_sts_init(sts_a, sk, subtree_idx);
   if(res != 0) return -1;
-  res |= crypto_sts_init(sts_b, &clen_b, sk, subtree_idx);
+  res |= crypto_sts_init(sts_b, sk, subtree_idx);
   if(res != 0) return -1;
-  if(clen_a != clen_b) return -1;
   // We expect the STS to be different since a random seed
   // is generated for the WOTS key pairs
-  return ! compare(sts_a, sts_b, clen_a);
+  return ! compare(sts_a, sts_b, CRYPTO_STS_BYTES);
 }
 
 int test05()
@@ -179,10 +173,9 @@ int test06()
   crypto_sign_keypair(pk, sk);
 
   unsigned char sts[CRYPTO_STS_BYTES];
-  unsigned long long clen;
 
   int res = 0;
-  res |= crypto_sts_init(sts, &clen, sk, -1);
+  res |= crypto_sts_init(sts, sk, -1);
   if(res != 0) return -1;
 
   // Right after creating the STS, there should be a full subtree of remaining uses
@@ -198,7 +191,7 @@ int test06()
   unsigned char sm[CRYPTO_BYTES + mlen];
 
   unsigned long long smlen;
-  crypto_sts_sign(message, mlen, sts, &clen, sm, &smlen, sk);
+  crypto_sts_sign(message, mlen, sts, sm, &smlen, sk);
 
   // And after that we should have one fewer remaining uses
   remaining_uses = crypto_sts_remaining_uses(sts);

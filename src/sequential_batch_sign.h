@@ -33,11 +33,10 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
  * is passed, then that index will be used. The initialization will fail
  * with values larger than 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT).
  */
-int crypto_sts_init(unsigned char *sts, unsigned long long *clen,
-                        const unsigned char *sk, long long subtree_idx);
+int crypto_sts_init(unsigned char *sts, const unsigned char *sk, long long subtree_idx);
 
 int crypto_sts_sign(const unsigned char *m, unsigned long long mlen,
-                    unsigned char *sts, unsigned long long *clen,
+                    unsigned char *sts,
                     unsigned char *sig, unsigned long long *slen,
                     const unsigned char *sk);
 
