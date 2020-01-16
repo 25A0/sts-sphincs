@@ -207,5 +207,5 @@ Cryptography–PKC 2016, pages 387–416. Springer, 2016.
 ([PDF](http://eprint.iacr.org/2015/1256.pdf))
 
 <span id="3">[3]</span>: Ralph Merkle. A certified digital signature. In
-Advances in Cryptol- ogy—CRYPTO’89 Proceedings, pages 218–238. Springer, 1990.
+Advances in Cryptology — CRYPTO’89 Proceedings, pages 218–238. Springer, 1990.
 ([PDF](http://www.merkle.com/papers/Certified1979.pdf))
