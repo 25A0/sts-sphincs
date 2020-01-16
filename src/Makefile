@@ -44,7 +44,7 @@ test_chacha12: chacha12.o randombytes.o
 # testutils.o
 .SECONDEXPANSION:
 
-bench_wots: ${SPHINCS}
+bench_horst bench_wots: ${SPHINCS}
 
 ${BENCHS}: benchutils.o $$@.o
 	$(CC) $(CFLAGS) $(INCDIRS) $^ -o $@
