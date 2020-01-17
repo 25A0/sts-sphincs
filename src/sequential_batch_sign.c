@@ -140,16 +140,16 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
   return 0;
 }
 
-int crypto_sts_init(unsigned char *sts_bytes, const unsigned char *sk, long long subtree_idx)
+int crypto_sts_init(unsigned char *sts_bytes, const unsigned char *sk, long long leaf_idx_or_negative)
 {
   unsigned long long clen = 0;
 
   unsigned long long leafidx;
-  // If the subtree index is -1 then we choose a random subtree, otherewise
+  // If the leaf index is negative then we choose a random leaf index, otherewise
   // we use the one provided by the user
-  if(subtree_idx < 0) {
+  if(leaf_idx_or_negative < 0) {
     // ===============================
-    // Generate a random subtree index
+    // Generate a random leaf index
     // ===============================
 
     unsigned char scratch[SK_RAND_SEED_BYTES + SEED_BYTES];
@@ -163,14 +163,13 @@ int crypto_sts_init(unsigned char *sts_bytes, const unsigned char *sk, long long
 
     // The lower 60 bit % (2^SUBTREE_HEIGHT) form the leafidx.
     leafidx = (rnd[0] & 0xfffffffffffffff);
-  } else if(subtree_idx >= (long long) 1 << TOTALTREE_HEIGHT ) {
-    // This index is not a valid subtree index.
-    return -1;
   } else {
-    // Shifting the subtree_idx to the left by the subtree height turns
-    // the subtree index into the index of its left-most leaf.
-    // For example, the left-most leaf of subtree 1 has index 2^SUBTREE_HEIGHT.
-    leafidx = subtree_idx;
+    // Otherwise we just use the provided leaf index, if it's a valid index
+    if(leaf_idx_or_negative >= (long long) 1 << TOTALTREE_HEIGHT ) {
+      // This index is not a valid leaf index.
+      return -1;
+    }
+    leafidx = leaf_idx_or_negative;
   }
 
   struct batch_sts sts = init_batch_sts(sts_bytes);

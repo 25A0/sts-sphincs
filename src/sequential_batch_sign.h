@@ -40,9 +40,9 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
  * a random leaf will  be used.
  * If a leaf index between 0 and 1 << TOTALTREE_HEIGHT
  * is passed, then that index will be used. The initialization will fail
- * with values larger than 1 << TOTALTREE_HEIGHT.
+ * with values larger than or equal to 1 << TOTALTREE_HEIGHT.
  */
-int crypto_sts_init(unsigned char *sts, const unsigned char *sk, long long leaf_idx);
+int crypto_sts_init(unsigned char *sts, const unsigned char *sk, long long leaf_idx_or_negative);
 
 int crypto_sts_sign(unsigned char *sig, unsigned long long *slen,
                     const unsigned char *m, unsigned long long mlen,
