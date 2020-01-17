@@ -93,8 +93,8 @@ int test03()
 
   unsigned char sts[CRYPTO_STS_BYTES];
 
-  // This number is exactly 1 larger than the largest valid subtree index
-  long long subtree_idx = (long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT);
+  // This number is exactly 1 larger than the largest valid leaf index
+  long long subtree_idx = (long long) 1 << (TOTALTREE_HEIGHT);
 
   int res = 0;
   res |= crypto_sts_init(sts, sk, subtree_idx);
@@ -114,15 +114,15 @@ int test04()
   unsigned char sts_a[CRYPTO_STS_BYTES];
   unsigned char sts_b[CRYPTO_STS_BYTES];
 
-  // A random, but valid subtree index
-  long long upper = (long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT);
+  // A random, but valid leaf index
+  long long upper = (long long) 1 << TOTALTREE_HEIGHT;
   long long subtree_idx = randomint(0, upper);
 
   int res = 0;
   res |= crypto_sts_init(sts_a, sk, subtree_idx);
-  if(res != 0) return -1;
+  if(res != 0) return -12;
   res |= crypto_sts_init(sts_b, sk, subtree_idx);
-  if(res != 0) return -1;
+  if(res != 0) return -13;
   return compare(sts_a, sts_b, CRYPTO_STS_BYTES);
 }
 
@@ -141,7 +141,7 @@ int test05()
   if(res != 0) return -1;
   res |= crypto_sts_init(sts_b, sk, -1);
   if(res != 0) return -1;
-  // Since we chose a random subtree each time, the STS should not
+  // Since we chose a random leaf each time, the STS should not
   // be the same.
   return ! compare(sts_a, sts_b, CRYPTO_STS_BYTES);
 }
@@ -218,17 +218,61 @@ int test07()
   return 0;
 }
 
+int test08()
+{
+  unsigned char sk[CRYPTO_SECRETKEYBYTES];
+  unsigned char pk[CRYPTO_PUBLICKEYBYTES];
+
+  crypto_sign_keypair(pk, sk);
+
+  unsigned char sts[CRYPTO_STS_BYTES];
+
+  int res = crypto_sts_init(sts, sk, 3);
+  if(res != 0) return res;
+
+  int n_samples = 1<<SUBTREE_HEIGHT;
+  int i;
+  for(i = 0; i < n_samples; i++) {
+    unsigned long long mlen = 32;
+    unsigned char message[mlen + CRYPTO_BYTES];
+    randombytes(message, mlen);
+
+    unsigned char sm[CRYPTO_BYTES + mlen];
+    unsigned long long slen = 0;
+
+    // Check that the # of remaining uses is correct:
+    if(crypto_sts_remaining_uses(sts) != n_samples - i) {
+      printf("Expected: %d Actual: %lld\n", n_samples - i, crypto_sts_remaining_uses(sts));
+      return -15;
+    }
+    res = crypto_sts_sign(sm, &slen, message, mlen, sts, sk);
+    if(res != 0) return res;
+    res = crypto_sign_open(message, &mlen, sm, slen, pk);
+    if(res != 0) return res;
+    if(crypto_sts_remaining_uses(sts) != n_samples - i - 1) {
+      printf("Expected: %d Actual: %lld\n", n_samples - i - 1, crypto_sts_remaining_uses(sts));
+      return -16;
+    }
+  }
+
+  // After this, exactly 0 uses should be left
+  if(crypto_sts_remaining_uses(sts) != 0) return -17;
+
+  return res;
+}
+
 int main(int argc, char const *argv[])
 {
   int err = 0;
 
   err |= run_test(&test01, "Test SPHINCS batch signing and verifying");
   err |= run_test(&test02, "Test two SPHINCS batch signatures");
-  err |= run_test(&test03, "Test that invalid subtree index is rejected");
-  err |= run_test(&test04, "Test that STS is deterministic with chosen subtree index");
-  err |= run_test(&test05, "Test that STS is non-deterministic with random subtree index");
+  err |= run_test(&test03, "Test that invalid leaf index is rejected");
+  err |= run_test(&test04, "Test that STS is deterministic with chosen leaf index");
+  err |= run_test(&test05, "Test that STS is non-deterministic with random leaf index");
   err |= run_test(&test06, "Test classic API with sequential batch signing");
   err |= run_test(&test07, "Test remainig uses");
+  err |= run_test(&test08, "Test a full subtree of signatures");
 
   if(err)
   {

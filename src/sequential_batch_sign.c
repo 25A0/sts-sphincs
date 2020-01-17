@@ -22,8 +22,11 @@
 #endif
 
 struct batch_sts{
-  // The leaf index that should be used for the next signature
-  unsigned long long* next_leafidx;
+  // The leaf index that was randomly chosen when the STS was initialized
+  unsigned long long* initial_leafidx;
+
+  // The number of signatures that have already been created with this STS
+  unsigned long long* n_signatures;
 
   // The public keys of the WOTS key pairs. Cached to speed up signing.
   unsigned char* wots_pks;
@@ -37,8 +40,11 @@ const struct batch_sts init_batch_sts(unsigned char* bytes) {
   struct batch_sts sts;
   int offset = 0;
 
-  sts.next_leafidx = (unsigned long long*) bytes + offset;
-  offset += (TOTALTREE_HEIGHT+7)/8;
+  sts.initial_leafidx = (unsigned long long*) (bytes + offset);
+  offset += sizeof(unsigned long long);
+
+  sts.n_signatures = (unsigned long long*) (bytes + offset);
+  offset += sizeof(unsigned long long);
 
   sts.wots_pks = bytes + offset;
   offset += (1 << SUBTREE_HEIGHT) * HASH_BYTES;
@@ -134,44 +140,6 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
   return 0;
 }
 
-/*
- * Increment whatever identifier determines which leaf is used to sign
- * the next message
- */
-static int increment_sts(unsigned char *sts_bytes) {
-  struct batch_sts sts = init_batch_sts(sts_bytes);
-
-  // Increment the leafidx that indicates which leaf should be used
-  // to sign the message
-  unsigned long long leafidx = *sts.next_leafidx;
-
-  // Check for the sentinel value that indicates that the end of the subtree
-  // was reached with the last signature
-  if(leafidx == (unsigned long long) -1) {
-    return -42;
-  }
-
-  // We need to make sure that we never accidentially use a leaf that
-  // is not even part of the tree.
-  if(leafidx > ((unsigned long long)1 << TOTALTREE_HEIGHT) - 1) return -13;
-
-  // Check that this leafidx can still be incremented.
-  // This is the case as long as the current leafidx does not point
-  // to the last leaf of its subtree.
-  unsigned long long first_leaf = leafidx - (leafidx % (1<<SUBTREE_HEIGHT));
-  if(leafidx  - first_leaf == (1<<SUBTREE_HEIGHT) - 1) {
-    leafidx = (unsigned long long) -1;
-  } else {
-    // Otherwise we can safely increment the leafidx.
-    leafidx += 1;
-  }
-
-  // Write new leafidx to sts
-  *sts.next_leafidx = leafidx;
-
-  return 0;
-}
-
 int crypto_sts_init(unsigned char *sts_bytes, const unsigned char *sk, long long subtree_idx)
 {
   unsigned long long clen = 0;
@@ -194,18 +162,15 @@ int crypto_sts_init(unsigned char *sts_bytes, const unsigned char *sk, long long
     zerobytes(scratch, SK_RAND_SEED_BYTES + SEED_BYTES);
 
     // The lower 60 bit % (2^SUBTREE_HEIGHT) form the leafidx.
-    // This comes down to picking a random subtree on the lowest level,
-    // and picking the left-most leaf in that subtree
     leafidx = (rnd[0] & 0xfffffffffffffff);
-    leafidx -= leafidx % (1<<SUBTREE_HEIGHT);
-  } else if(subtree_idx >= (long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT) ) {
+  } else if(subtree_idx >= (long long) 1 << TOTALTREE_HEIGHT ) {
     // This index is not a valid subtree index.
     return -1;
   } else {
     // Shifting the subtree_idx to the left by the subtree height turns
     // the subtree index into the index of its left-most leaf.
     // For example, the left-most leaf of subtree 1 has index 2^SUBTREE_HEIGHT.
-    leafidx = subtree_idx << SUBTREE_HEIGHT;
+    leafidx = subtree_idx;
   }
 
   struct batch_sts sts = init_batch_sts(sts_bytes);
@@ -213,8 +178,11 @@ int crypto_sts_init(unsigned char *sts_bytes, const unsigned char *sk, long long
   // ==============================================================
   // Write the current leafidx to the sts
   // ==============================================================
-  *sts.next_leafidx = leafidx;
-  clen += (TOTALTREE_HEIGHT+7)/8;
+  *sts.initial_leafidx = leafidx;
+  clen += sizeof(unsigned long long);
+
+  *sts.n_signatures = (unsigned long) 0;
+  clen += sizeof(unsigned long);
 
   // ==============================================================
   // Construct the hash of the lowest tree, write it to the sts
@@ -247,11 +215,7 @@ int crypto_sts_init(unsigned char *sts_bytes, const unsigned char *sk, long long
 long long crypto_sts_remaining_uses(unsigned char *sts_bytes)
 {
   struct batch_sts sts = init_batch_sts(sts_bytes);
-  unsigned long long leafidx = *sts.next_leafidx;
-
-  // Compute the index of the first leaf of the subtree containing leafidx
-  unsigned long long leafidx_within_subtree = leafidx % (1<<SUBTREE_HEIGHT);
-  return (1 << SUBTREE_HEIGHT) - leafidx_within_subtree;
+  return (1 << SUBTREE_HEIGHT) - *sts.n_signatures;
 }
 
 int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
@@ -269,8 +233,10 @@ int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
   struct batch_sts sts = init_batch_sts(sts_bytes);
   struct signature sig = init_signature(sig_bytes);
 
-  // Read leafidx from updated sts
-  unsigned long long leafidx = *sts.next_leafidx;
+  // Only proceed if we can sign another message with this STS
+  if(crypto_sts_remaining_uses(sts_bytes) <= 0) {
+    return -1;
+  }
 
   // ==========================================================================
   // Calculate and copy the message hash seed to the beginning of the signature
@@ -301,11 +267,25 @@ int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
   *slen += MESSAGE_HASH_SEED_BYTES;
 
   // ==============================================================
-  // Update leafidx. Return if we're out of leaves
+  // Update leafidx
   // ==============================================================
 
-  int res = increment_sts(sts_bytes);
-  if(res != 0) return res;
+  // Calculate the leaf index that should be used to sign this message
+  unsigned long long leafidx;
+  {
+    // This is the index at which the STS was started
+    unsigned long long initial_leafidx = *sts.initial_leafidx;
+    // This is the index of that leaf *within* the subtree
+    unsigned long long leaf_index_within_subtree = initial_leafidx % (1<<SUBTREE_HEIGHT);
+    // This is the index of the left-most leaf in the subtree containing initial_leafidx
+    unsigned long long leftmost = initial_leafidx - leaf_index_within_subtree;
+
+    leafidx = leftmost + ((leaf_index_within_subtree + *sts.n_signatures) % (1<<SUBTREE_HEIGHT));
+  }
+
+  // Increment the number of messages that have been signed with this STS
+
+  *sts.n_signatures+=1;
 
   // Write used leafidx to signature
   write_ull(sig.leafidx, leafidx, (TOTALTREE_HEIGHT+7)/8);

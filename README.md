@@ -23,7 +23,7 @@ number of messages, by calling `crypto_sts_sign`.
  - Initialize a short-time state:
    ```
    int crypto_sts_init(unsigned char *short_time_state,
-                       const unsigned char *secret_key, long long subtree_idx);
+                       const unsigned char *secret_key, long long leaf_index);
    ```
 
  - Sign a message using the short-time state:
