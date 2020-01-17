@@ -23,5 +23,5 @@
 #define WOTS_LOG_L 7  // for WOTS_W == 16
 #define WOTS_SIGBYTES (WOTS_L*HASH_BYTES)
 
-#define HASH_BYTES 32 // Has to be log(HORST_T)*HORST_K/8
-#define MSGHASH_BYTES 64
+#define HASH_BYTES 32
+#define MSGHASH_BYTES 64 // Has to be HORST_LOGT*HORST_K/8
