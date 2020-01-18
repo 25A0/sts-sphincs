@@ -56,7 +56,7 @@ typedef uint8_t TSUBTREE_IDX;
                              (TOTALTREE_HEIGHT + 7) / 8 +               \
                              (1<<SUBTREE_HEIGHT) * HASH_BYTES +         \
                              STS_HORST_SIGBYTES +                       \
-                             N_LEVELS * WOTS_SIGBYTES +                 \
+                             (N_LEVELS - 1) * WOTS_SIGBYTES +           \
                              (TOTALTREE_HEIGHT - SUBTREE_HEIGHT) * HASH_BYTES)
 
 int crypto_sign_keypair(unsigned char *pk, unsigned char *sk);
