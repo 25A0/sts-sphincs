@@ -23,6 +23,16 @@ typedef uint8_t TSUBTREE_IDX;
 #define CRYPTO_SECRETKEYBYTES (SEED_BYTES + PUBLIC_SEED_BYTES + \
                                SK_RAND_SEED_BYTES)
 #define CRYPTO_PUBLICKEYBYTES (HASH_BYTES + PUBLIC_SEED_BYTES)
+/*
+ * The signature consists of:
+ *  - the message hash seed
+ *  - the index of the HORST key pair that was used to sign the subtree nodes
+ *  - the HORST signature that signs the subtree nodes
+ *  - the WOTS signature of the message
+ *  - one WOTS signature for each level of the hypertree except for the lowest
+ *    subtree, in which a message is signed
+ *  - the authentication path through the entire hypertree
+ */
 #define CRYPTO_BYTES (MESSAGE_HASH_SEED_BYTES + (TOTALTREE_HEIGHT+7)/8 + \
                       STS_HORST_SIGBYTES +                              \
                       STS_WOTS_SIGBYTES +                               \
@@ -31,6 +41,17 @@ typedef uint8_t TSUBTREE_IDX;
                                     SUBTREE_HEIGHT))
 #define CRYPTO_DETERMINISTIC 1
 
+/*
+ * The short-time state consists of:
+ *  - the seed from which the STS elements are generated
+ *  - the index of the next WOTS key pair to be used
+ *  - the index of the HORST key pair that signs the subtree nodes
+ *  - the WOTS public keys, to speed up auth path generation
+ *  - the HORST signature of the subtree nodes
+ *  - one WOTS signature for each level of the hypertree
+ *  - the authentication path throughout the entire hypertree, except for the
+ *    lowest subtree
+ */
 #define CRYPTO_STS_BYTES    (SEED_BYTES + sizeof(TSUBTREE_IDX) +        \
                              (TOTALTREE_HEIGHT + 7) / 8 +               \
                              (1<<SUBTREE_HEIGHT) * HASH_BYTES +         \
