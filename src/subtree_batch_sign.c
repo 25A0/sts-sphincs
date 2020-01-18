@@ -318,7 +318,6 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
                     unsigned char *sts_bytes,
                     const unsigned char *sk)
 {
-  unsigned char* sigp = sig_bytes;
   struct batch_sts sts = init_batch_sts(sts_bytes);
 
   struct signature sig = init_signature(sig_bytes);
@@ -326,9 +325,7 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
   *slen = 0;
 
   // Start off by writing the used leaf idx to the signature
-  assert((unsigned char *)sig.leafidx == sigp);
-  memcpy(sigp, (unsigned char*) sts.leafidx, sizeof(unsigned long long));
-  sigp += sizeof(unsigned long long);
+  memcpy(sig.leafidx, (unsigned char*) sts.leafidx, sizeof(unsigned long long));
   *slen += sizeof(unsigned long long);
 
   // Do whatever needs to happen for crypto_sign_update
@@ -337,9 +334,7 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
     unsigned long subtree_leafidx = *sts.next_subtree_leafidx;
 
     // Store the used leaf idx in the signature
-    assert((unsigned char *)sig.subtree_leafidx == sigp);
-    memcpy(sigp, (unsigned char*) &subtree_leafidx, sizeof(unsigned long));
-    sigp += sizeof(unsigned long);
+    memcpy(sig.subtree_leafidx, (unsigned char*) &subtree_leafidx, sizeof(unsigned long));
     *slen += sizeof(unsigned long);
 
     // Update the sts so that the next signature uses the following leafidx
@@ -379,9 +374,7 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
 #error "Only implemented for MESSAGE_HASH_SEED_BYTES == HASH_BYTES"
 #endif
     varlen_hash(msg_hash_input, msg_hash_seed_input, msg_hash_seed_input_size);
-    assert(sig.message_hash_seed == sigp);
-    memcpy(sigp, msg_hash_input, MESSAGE_HASH_SEED_BYTES);
-    sigp += MESSAGE_HASH_SEED_BYTES;
+    memcpy(sig.message_hash_seed, msg_hash_input, MESSAGE_HASH_SEED_BYTES);
     *slen += MESSAGE_HASH_SEED_BYTES;
 
     memcpy(msg_hash_input + MESSAGE_HASH_SEED_BYTES, m, mlen);
@@ -396,9 +389,7 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
 
     const unsigned char* public_seed = get_public_seed_from_sk(sk);
 
-    assert(sig.wots_message_signature == sigp);
-    wots_sign_conf(sigp, m_h, seed, public_seed, addr_bytes, sts_wots_config);
-    sigp += STS_WOTS_SIGBYTES;
+    wots_sign_conf(sig.wots_message_signature, m_h, seed, public_seed, addr_bytes, sts_wots_config);
     *slen += STS_WOTS_SIGBYTES;
 
     // Store the authentication path of that signature in the signature buffer
@@ -406,36 +397,19 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
     // secret key. This is so that WOTS key pairs can be generated based on
     // that seed, rather than the secret key. Otherwise the key pairs
     // would be the same for each short-time state.
-    assert(sig.subtree_authpath == sigp);
-    compute_authpath(m_h, sigp, addr_bytes, sts.wots_kps,
+    compute_authpath(m_h, sig.subtree_authpath, addr_bytes, sts.wots_kps,
                      sts.subtree_sk_seed, SUBTREE_HEIGHT, public_seed);
-    sigp += SUBTREE_HEIGHT*HASH_BYTES;
     *slen += SUBTREE_HEIGHT*HASH_BYTES;
 
   }
 
-  /* unsigned long long update_slen = 0; */
-  /* int res = crypto_sign_update(m, mlen, sts_bytes, sigp, &update_slen, sk); */
-  /* if(res) { */
-  /*   return res; */
-  /* } */
-  /* assert(update_slen == sizeof(unsigned long) + MESSAGE_HASH_SEED_BYTES + */
-  /*        STS_WOTS_SIGBYTES + SUBTREE_HEIGHT*HASH_BYTES); */
-  /* sigp += update_slen; */
-  /* *slen += update_slen; */
-
   // Copy the remaining SPHINCS signature to the signature buffer
 
-  assert(sig.horst_signature == sigp);
-  memcpy(sigp, sts.horst_signature, sts_horst_config.horst_sigbytes);
-  sigp += sts_horst_config.horst_sigbytes;
+  memcpy(sig.horst_signature, sts.horst_signature, sts_horst_config.horst_sigbytes);
 
-  assert(sig.wots_signatures == sigp);
-  memcpy(sigp, sts.wots_signatures,
+  memcpy(sig.wots_signatures, sts.wots_signatures,
          (N_LEVELS -  1)*WOTS_SIGBYTES +
          (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)*HASH_BYTES);
-  sigp += (N_LEVELS - 1)*WOTS_SIGBYTES +
-          (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)*HASH_BYTES;
 
   *slen = CRYPTO_BYTES;
 
