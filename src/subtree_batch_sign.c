@@ -56,7 +56,7 @@ const struct batch_sts init_batch_sts(unsigned char *bytes) {
   offset += STS_HORST_SIGBYTES;
 
   sts.wots_signatures = bytes + offset;
-  offset += N_LEVELS * WOTS_SIGBYTES +
+  offset += (N_LEVELS - 1) * WOTS_SIGBYTES +
             (TOTALTREE_HEIGHT - SUBTREE_HEIGHT) * HASH_BYTES;
 
   assert(offset == CRYPTO_STS_BYTES);
