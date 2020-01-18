@@ -64,6 +64,73 @@ const struct batch_sts init_batch_sts(unsigned char *bytes) {
   return sts;
 }
 
+struct signature {
+  // The hash seed that was used to hash the message
+  unsigned char* message_hash_seed;
+
+  // the WOTS signature of the message
+  unsigned char* wots_message_signature;
+
+  // the authpath through the STS subtree
+  unsigned char* subtree_authpath;
+
+  // The index of the HORST leaf that signed the subtree
+  unsigned long long* leafidx;
+
+  // The index of the WOTS leaf within the STS subtree that signed the message
+  unsigned long long* subtree_leafidx;
+
+  // The HORST signature of the subtree
+  unsigned char* horst_signature;
+
+  // The WOTS signatures that verify the HORST signature under the used key pair
+  unsigned char* wots_signatures;
+
+  // The authentication path through the entire hypertree
+  unsigned char* authpaths;
+
+  // The signature always contains a copy of the message at the very end
+  unsigned char* message;
+};
+
+struct signature init_signature(unsigned char* bytes) {
+  struct signature sig;
+  unsigned long long offset = 0;
+
+  // the index of the HORST key pair that was used to sign the subtree nodes
+  sig.leafidx = (unsigned long long*) (bytes + offset);
+  offset += sizeof(unsigned long long);
+
+  sig.subtree_leafidx = (unsigned long long*) (bytes + offset);
+  offset += sizeof(unsigned long long);
+
+  // the message hash seed
+  sig.message_hash_seed = bytes + offset;
+  offset += MESSAGE_HASH_SEED_BYTES;
+
+  // the WOTS signature of the message
+  sig.wots_message_signature = bytes + offset;
+  offset += STS_WOTS_SIGBYTES;
+
+  // the authpath through the STS subtree
+  sig.subtree_authpath = bytes + offset;
+  offset += SUBTREE_HEIGHT * HASH_BYTES;
+
+  // the HORST signature that signs the subtree nodes
+  sig.horst_signature = bytes + offset;
+  offset += STS_HORST_SIGBYTES;
+
+  // one WOTS signature for each level of the hypertree except for the lowest
+  // subtree, in which a message is signed
+  // the authentication path through the entire hypertree
+  sig.wots_signatures = bytes + offset;
+
+  // The message is always at the very end of the signature
+  sig.message = bytes + CRYPTO_BYTES;
+
+  return sig;
+}
+
 const unsigned char* get_public_seed_from_pk(const unsigned char* pk) {
   return pk + HASH_BYTES;
 }
@@ -246,118 +313,124 @@ long long crypto_sts_remaining_uses(unsigned char *sts_bytes)
   return (1 << SUBTREE_HEIGHT) - *sts.next_subtree_leafidx;
 }
 
-int crypto_sign_update(const unsigned char *m, unsigned long long mlen,
-                       unsigned char *sts_bytes,
-                       unsigned char *sig, unsigned long long *slen,
-                       const unsigned char *sk)
-{
-  unsigned char* sigp = sig;
-  struct batch_sts sts = init_batch_sts(sts_bytes);
-
-  // Get the current leafidx from the sts
-  unsigned long subtree_leafidx = *sts.next_subtree_leafidx;
-
-  // Store the used leaf idx in the signature
-  memcpy(sigp, (unsigned char*) &subtree_leafidx, sizeof(unsigned long));
-  sigp += sizeof(unsigned long);
-  *slen += sizeof(unsigned long);
-
-  // Update the sts so that the next signature uses the following leafidx
-  int increment_res = increment_sts(sts_bytes);
-  if (increment_res) {
-    return increment_res;
-  }
-
-  // Generate an address for this subtree
-  unsigned char addr_bytes[ADDR_BYTES];
-  zerobytes(addr_bytes, ADDR_BYTES);
-  struct hash_addr address = init_hash_addr(addr_bytes);
-  set_type(addr_bytes, SPHINCS_ADDR);
-  *address.subtree_layer = 0;
-  *address.subtree_address = *sts.leafidx;
-  *address.subtree_node = subtree_leafidx;
-
-  unsigned char seed[SEED_BYTES];
-  // Note that the WOTS seed is generated from the seed stored in the short-time
-  // sts, and not from the secret key.
-  get_seed(seed, sts.subtree_sk_seed, addr_bytes);
-
-  // The message hash seed depends on the seed in the secret key, and the seed
-  // that determines the WOTS keypairs in the short-time subtree. Note that the
-  // WOTS keypairs in the short-time subtree depend on the leaf index that
-  // holds the short-time subtree.
-  unsigned int msg_hash_seed_input_size = SK_RAND_SEED_BYTES + SEED_BYTES;
-  unsigned char msg_hash_seed_input[msg_hash_seed_input_size];
-  memcpy(msg_hash_seed_input                     , sk, SK_RAND_SEED_BYTES);
-  memcpy(msg_hash_seed_input + SK_RAND_SEED_BYTES, seed, SEED_BYTES);
-
-  unsigned int msg_hash_input_size = MESSAGE_HASH_SEED_BYTES + mlen;
-  unsigned char msg_hash_input[msg_hash_input_size];
-
-#if MESSAGE_HASH_SEED_BYTES != HASH_BYTES
-#error "Only implemented for MESSAGE_HASH_SEED_BYTES == HASH_BYTES"
-#endif
-  varlen_hash(msg_hash_input, msg_hash_seed_input, msg_hash_seed_input_size);
-  memcpy(sigp, msg_hash_input, MESSAGE_HASH_SEED_BYTES);
-  sigp += MESSAGE_HASH_SEED_BYTES;
-  *slen += MESSAGE_HASH_SEED_BYTES;
-
-  memcpy(msg_hash_input + MESSAGE_HASH_SEED_BYTES, m, mlen);
-
-  unsigned char m_h[MSGHASH_BYTES];
-  zerobytes(m_h, MSGHASH_BYTES);
-  msg_hash(m_h, msg_hash_input, msg_hash_input_size);
-  // TODO: currently, WOTS will only use the first 32 bytes of the 64 byte hash
-
-  // Sign the message with the WOTS secret key at the given leafidx of the
-  // short-time subtree
-
-  const unsigned char* public_seed = get_public_seed_from_sk(sk);
-
-  wots_sign_conf(sigp, m_h, seed, public_seed, addr_bytes, sts_wots_config);
-  sigp += STS_WOTS_SIGBYTES;
-  *slen += STS_WOTS_SIGBYTES;
-
-  // Store the authentication path of that signature in the signature buffer
-  // Note that the subtree seed is passed to this function instead of the
-  // secret key. This is so that WOTS key pairs can be generated based on
-  // that seed, rather than the secret key. Otherwise the key pairs
-  // would be the same for each short-time state.
-  compute_authpath(m_h, sigp, addr_bytes, sts.wots_kps,
-                   sts.subtree_sk_seed, SUBTREE_HEIGHT, public_seed);
-  sigp += SUBTREE_HEIGHT*HASH_BYTES;
-  *slen += SUBTREE_HEIGHT*HASH_BYTES;
-
-  return 0;
-}
-
-int crypto_sts_sign(unsigned char *sig, unsigned long long *slen,
+int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
                     const unsigned char *m, unsigned long long mlen,
                     unsigned char *sts_bytes,
                     const unsigned char *sk)
 {
-  unsigned char* sigp = sig;
+  unsigned char* sigp = sig_bytes;
   struct batch_sts sts = init_batch_sts(sts_bytes);
 
+  struct signature sig = init_signature(sig_bytes);
+
+  *slen = 0;
+
   // Start off by writing the used leaf idx to the signature
+  assert((unsigned char *)sig.leafidx == sigp);
   memcpy(sigp, (unsigned char*) sts.leafidx, sizeof(unsigned long long));
   sigp += sizeof(unsigned long long);
+  *slen += sizeof(unsigned long long);
 
   // Do whatever needs to happen for crypto_sign_update
-  *slen = 0;
-  int res = crypto_sign_update(m, mlen, sts_bytes, sigp, slen, sk);
-  if(res) {
-    return res;
+  {
+    // Get the current leafidx from the sts
+    unsigned long subtree_leafidx = *sts.next_subtree_leafidx;
+
+    // Store the used leaf idx in the signature
+    assert((unsigned char *)sig.subtree_leafidx == sigp);
+    memcpy(sigp, (unsigned char*) &subtree_leafidx, sizeof(unsigned long));
+    sigp += sizeof(unsigned long);
+    *slen += sizeof(unsigned long);
+
+    // Update the sts so that the next signature uses the following leafidx
+    // TODO: This needs to happen at the very beginning of the function
+    int increment_res = increment_sts(sts_bytes);
+    if (increment_res) {
+      return increment_res;
+    }
+
+    // Generate an address for this subtree
+    unsigned char addr_bytes[ADDR_BYTES];
+    zerobytes(addr_bytes, ADDR_BYTES);
+    struct hash_addr address = init_hash_addr(addr_bytes);
+    set_type(addr_bytes, SPHINCS_ADDR);
+    *address.subtree_layer = 0;
+    *address.subtree_address = *sts.leafidx;
+    *address.subtree_node = subtree_leafidx;
+
+    unsigned char seed[SEED_BYTES];
+    // Note that the WOTS seed is generated from the seed stored in the short-time
+    // sts, and not from the secret key.
+    get_seed(seed, sts.subtree_sk_seed, addr_bytes);
+
+    // The message hash seed depends on the seed in the secret key, and the seed
+    // that determines the WOTS keypairs in the short-time subtree. Note that the
+    // WOTS keypairs in the short-time subtree depend on the leaf index that
+    // holds the short-time subtree.
+    unsigned int msg_hash_seed_input_size = SK_RAND_SEED_BYTES + SEED_BYTES;
+    unsigned char msg_hash_seed_input[msg_hash_seed_input_size];
+    memcpy(msg_hash_seed_input                     , sk, SK_RAND_SEED_BYTES);
+    memcpy(msg_hash_seed_input + SK_RAND_SEED_BYTES, seed, SEED_BYTES);
+
+    unsigned int msg_hash_input_size = MESSAGE_HASH_SEED_BYTES + mlen;
+    unsigned char msg_hash_input[msg_hash_input_size];
+
+#if MESSAGE_HASH_SEED_BYTES != HASH_BYTES
+#error "Only implemented for MESSAGE_HASH_SEED_BYTES == HASH_BYTES"
+#endif
+    varlen_hash(msg_hash_input, msg_hash_seed_input, msg_hash_seed_input_size);
+    assert(sig.message_hash_seed == sigp);
+    memcpy(sigp, msg_hash_input, MESSAGE_HASH_SEED_BYTES);
+    sigp += MESSAGE_HASH_SEED_BYTES;
+    *slen += MESSAGE_HASH_SEED_BYTES;
+
+    memcpy(msg_hash_input + MESSAGE_HASH_SEED_BYTES, m, mlen);
+
+    unsigned char m_h[MSGHASH_BYTES];
+    zerobytes(m_h, MSGHASH_BYTES);
+    msg_hash(m_h, msg_hash_input, msg_hash_input_size);
+    // TODO: currently, WOTS will only use the first 32 bytes of the 64 byte hash
+
+    // Sign the message with the WOTS secret key at the given leafidx of the
+    // short-time subtree
+
+    const unsigned char* public_seed = get_public_seed_from_sk(sk);
+
+    assert(sig.wots_message_signature == sigp);
+    wots_sign_conf(sigp, m_h, seed, public_seed, addr_bytes, sts_wots_config);
+    sigp += STS_WOTS_SIGBYTES;
+    *slen += STS_WOTS_SIGBYTES;
+
+    // Store the authentication path of that signature in the signature buffer
+    // Note that the subtree seed is passed to this function instead of the
+    // secret key. This is so that WOTS key pairs can be generated based on
+    // that seed, rather than the secret key. Otherwise the key pairs
+    // would be the same for each short-time state.
+    assert(sig.subtree_authpath == sigp);
+    compute_authpath(m_h, sigp, addr_bytes, sts.wots_kps,
+                     sts.subtree_sk_seed, SUBTREE_HEIGHT, public_seed);
+    sigp += SUBTREE_HEIGHT*HASH_BYTES;
+    *slen += SUBTREE_HEIGHT*HASH_BYTES;
+
   }
-  assert(*slen == sizeof(unsigned long) + MESSAGE_HASH_SEED_BYTES +
-         STS_WOTS_SIGBYTES + SUBTREE_HEIGHT*HASH_BYTES);
-  sigp += *slen;
+
+  /* unsigned long long update_slen = 0; */
+  /* int res = crypto_sign_update(m, mlen, sts_bytes, sigp, &update_slen, sk); */
+  /* if(res) { */
+  /*   return res; */
+  /* } */
+  /* assert(update_slen == sizeof(unsigned long) + MESSAGE_HASH_SEED_BYTES + */
+  /*        STS_WOTS_SIGBYTES + SUBTREE_HEIGHT*HASH_BYTES); */
+  /* sigp += update_slen; */
+  /* *slen += update_slen; */
 
   // Copy the remaining SPHINCS signature to the signature buffer
 
+  assert(sig.horst_signature == sigp);
   memcpy(sigp, sts.horst_signature, sts_horst_config.horst_sigbytes);
   sigp += sts_horst_config.horst_sigbytes;
 
+  assert(sig.wots_signatures == sigp);
   memcpy(sigp, sts.wots_signatures,
          (N_LEVELS -  1)*WOTS_SIGBYTES +
          (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)*HASH_BYTES);
