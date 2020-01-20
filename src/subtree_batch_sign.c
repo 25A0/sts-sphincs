@@ -415,6 +415,8 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
                           const unsigned char *sm, unsigned long long smlen,
                           const unsigned char *pk)
 {
+  const unsigned char* public_seed = get_public_seed_from_pk(pk);
+
   // in the api, the signature is declared as const, but the signature struct
   // only has non-constant members. so we copy the signature to a non-const
   // array. that's a bit of a performance hit of course, but this is the
@@ -422,37 +424,23 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
   unsigned char sig_but_not_constant[smlen + *mlen];
   memcpy(sig_but_not_constant, sm, smlen + *mlen);
 
-  const unsigned char* sigp = sig_but_not_constant;
-
   struct signature sig = init_signature(sig_but_not_constant);
 
   // Read the subtree leaf idx from the signature
-  assert((unsigned char*)sig.leafidx == sigp);
   unsigned long long leafidx = *sig.leafidx;
-  sigp += sizeof(unsigned long long);
-  smlen -= sizeof(unsigned long long);
 
   // Restore the root of the short-time subtree
   unsigned char restored_subtree_root[HASH_BYTES];
-  const unsigned char* public_seed = get_public_seed_from_pk(pk);
-
   {
 
-    unsigned long long slen = smlen;
 
     // Read the used leaf idx from the signature
-    assert(sig.subtree_leafidx == (unsigned long long*) sigp);
     unsigned long subtree_leafidx = *sig.subtree_leafidx;
-    sigp += sizeof(unsigned long);
-    slen -= sizeof(unsigned long);
 
     unsigned int msg_hash_input_size = MESSAGE_HASH_SEED_BYTES + *mlen;
     unsigned char msg_hash_input[msg_hash_input_size];
 
-    assert(sig.message_hash_seed == sigp);
     memcpy(msg_hash_input, sig.message_hash_seed, MESSAGE_HASH_SEED_BYTES);
-    sigp += MESSAGE_HASH_SEED_BYTES;
-    slen -= MESSAGE_HASH_SEED_BYTES;
 
     memcpy(msg_hash_input + MESSAGE_HASH_SEED_BYTES, m, *mlen);
 
@@ -473,22 +461,16 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     // The public key components will be stored in this buffer
     unsigned char wots_pk[sts_wots_config.wots_l * HASH_BYTES];
 
-    assert(sig.wots_message_signature == sigp);
     wots_verify_conf(wots_pk, sig.wots_message_signature, m_h, public_seed, addr_bytes, sts_wots_config);
-    sigp += STS_WOTS_SIGBYTES;
-    slen -= STS_WOTS_SIGBYTES;
 
     // Now construct an L-tree from that
     unsigned char pk_hash[HASH_BYTES];
     l_tree_conf(pk_hash, wots_pk, addr_bytes, public_seed, sts_wots_config);
 
     // validate_authpath(root, pkhash, leafidx & 0x1f, sigp, tpk, SUBTREE_HEIGHT);
-    assert(sig.subtree_authpath == sigp);
     validate_authpath(restored_subtree_root, pk_hash, addr_bytes, public_seed,
                       sig.subtree_authpath,
                       SUBTREE_HEIGHT);
-    sigp += HASH_BYTES * SUBTREE_HEIGHT;
-    slen -= HASH_BYTES * SUBTREE_HEIGHT;
 
   }
 
@@ -505,7 +487,6 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
   *address.subtree_node = leafidx % (1<<SUBTREE_HEIGHT);
 
   // Restore the HORST public key
-  assert(sig.horst_signature == sigp);
   unsigned char leaf[HASH_BYTES];
   int res = horst_verify_conf(leaf,
                               sig.horst_signature,
@@ -514,15 +495,11 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
                               sts_horst_config);
   if(res) return res;
 
-  sigp += sts_horst_config.horst_sigbytes;
-  smlen -= sts_horst_config.horst_sigbytes;
-
   *address.subtree_layer = 1;
 
   // Restore the root of the hypertree
-  assert(sig.wots_signatures == sigp);
   res = verify_leaf(leaf, N_LEVELS - 1,
-                    sig.wots_signatures, smlen,
+                    sig.wots_signatures, SIZEOF_WOTS_SIGNATURES_AND_AUTHPATHS,
                     pk,
                     addr_bytes);
   if(res) return res;
