@@ -159,21 +159,6 @@ const struct wots_config sts_wots_config = { STS_WOTS_L,
 // and speeds up signing and verification.
 const struct horst_config sts_horst_config = {STS_HORST_K, STS_HORST_SIGBYTES};
 
-static int increment_sts(unsigned char *sts_bytes)
-{
-  struct batch_sts sts = init_batch_sts(sts_bytes);
-
-  // Make sure that the next leafidx actually exists in the
-  // short-time subtree
-  if(*sts.next_subtree_leafidx < (1 << STS_SUBTREE_HEIGHT)) {
-    // Increment the leafidx that will be used for the next leaf
-    (*sts.next_subtree_leafidx)++;
-    return 0;
-  } else {
-    return 1;
-  }
-}
-
 static int
 get_entropy(unsigned long long *out, const unsigned char *seed, int lseed)
 {
@@ -302,6 +287,10 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
 
   struct signature sig = init_signature(sig_bytes);
 
+  if (crypto_sts_remaining_uses(sts_bytes) <= 0) {
+    return -1;
+  }
+
   // Start off by writing the used leaf idx to the signature
   memcpy(sig.leafidx, (unsigned char*) sts.leafidx, sizeof(unsigned long long));
 
@@ -310,15 +299,11 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
     // Get the current leafidx from the sts
     unsigned long subtree_leafidx = *sts.next_subtree_leafidx;
 
+    // Update the sts so that the next signature uses the following leafidx
+    (*sts.next_subtree_leafidx)++;
+
     // Store the used leaf idx in the signature
     memcpy(sig.subtree_leafidx, (unsigned char*) &subtree_leafidx, sizeof(unsigned long));
-
-    // Update the sts so that the next signature uses the following leafidx
-    // TODO: This needs to happen at the very beginning of the function
-    int increment_res = increment_sts(sts_bytes);
-    if (increment_res) {
-      return increment_res;
-    }
 
     // Generate an address for this subtree
     unsigned char addr_bytes[ADDR_BYTES];
