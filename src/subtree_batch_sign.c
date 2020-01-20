@@ -94,40 +94,35 @@ struct signature {
 };
 
 struct signature init_signature(unsigned char* bytes) {
-  struct signature sig;
-  unsigned long long offset = 0;
+  struct signature sig = {
+    // the index of the HORST key pair that was used to sign the subtree nodes
+    .leafidx = (unsigned long long*) (bytes + OFFSET_LEAFIDX),
 
-  // the index of the HORST key pair that was used to sign the subtree nodes
-  sig.leafidx = (unsigned long long*) (bytes + offset);
-  offset += sizeof(unsigned long long);
+    // the index of the WOTS key pair within the subtree that was used
+    // to sign the message
+    .subtree_leafidx = (unsigned long long*) (bytes + OFFSET_SUBTREE_LEAFIDX),
 
-  sig.subtree_leafidx = (unsigned long long*) (bytes + offset);
-  offset += sizeof(unsigned long long);
+    // the message hash seed
+    .message_hash_seed = bytes + OFFSET_MESSAGE_HASH_SEED,
 
-  // the message hash seed
-  sig.message_hash_seed = bytes + offset;
-  offset += MESSAGE_HASH_SEED_BYTES;
+    // the WOTS signature of the message
+    .wots_message_signature = bytes + OFFSET_WOTS_MESSAGE_SIGNATURE,
 
-  // the WOTS signature of the message
-  sig.wots_message_signature = bytes + offset;
-  offset += STS_WOTS_SIGBYTES;
+    // the authpath through the STS subtree
+    .subtree_authpath = bytes + OFFSET_SUBTREE_AUTHPATH,
 
-  // the authpath through the STS subtree
-  sig.subtree_authpath = bytes + offset;
-  offset += SUBTREE_HEIGHT * HASH_BYTES;
+    // the HORST signature that signs the subtree nodes
+    .horst_signature = bytes + OFFSET_HORST_SIGNATURE,
 
-  // the HORST signature that signs the subtree nodes
-  sig.horst_signature = bytes + offset;
-  offset += STS_HORST_SIGBYTES;
+    // one WOTS signature for each level of the hypertree except for the lowest
+    // subtree, in which a message is signed
+    // the authentication path through the entire hypertree
+    .wots_signatures = bytes + OFFSET_WOTS_SIGNATURES_AND_AUTHPATHS,
 
-  // one WOTS signature for each level of the hypertree except for the lowest
-  // subtree, in which a message is signed
-  // the authentication path through the entire hypertree
-  sig.wots_signatures = bytes + offset;
+    // The message is always at the very end of the signature
+    .message = bytes + OFFSET_MESSAGE,
 
-  // The message is always at the very end of the signature
-  sig.message = bytes + CRYPTO_BYTES;
-
+  };
   return sig;
 }
 

@@ -23,6 +23,38 @@ typedef uint8_t TSUBTREE_IDX;
 #define CRYPTO_SECRETKEYBYTES (SEED_BYTES + PUBLIC_SEED_BYTES + \
                                SK_RAND_SEED_BYTES)
 #define CRYPTO_PUBLICKEYBYTES (HASH_BYTES + PUBLIC_SEED_BYTES)
+
+// Sizes of signature elements
+#define SIZEOF_LEAFIDX sizeof(unsigned long long)
+#define SIZEOF_SUBTREE_LEAFIDX sizeof(unsigned long long)
+#define SIZEOF_MESSAGE_HASH_SEED MESSAGE_HASH_SEED_BYTES
+#define SIZEOF_WOTS_MESSAGE_SIGNATURE STS_WOTS_SIGBYTES
+#define SIZEOF_SUBTREE_AUTHPATH (SUBTREE_HEIGHT * HASH_BYTES)
+#define SIZEOF_HORST_SIGNATURE STS_HORST_SIGBYTES
+#define SIZEOF_WOTS_SIGNATURES_AND_AUTHPATHS ((N_LEVELS - 1) *          \
+                                              (WOTS_SIGBYTES +          \
+                                               HASH_BYTES * SUBTREE_HEIGHT))
+
+// Offsets of signature elements. These determine the order of the elements.
+// The offset of the element is the offset of the previous element plus
+// the size of the previous element
+#define OFFSET_LEAFIDX \
+  0
+#define OFFSET_SUBTREE_LEAFIDX \
+  OFFSET_LEAFIDX + SIZEOF_LEAFIDX
+#define OFFSET_MESSAGE_HASH_SEED \
+  OFFSET_SUBTREE_LEAFIDX + SIZEOF_SUBTREE_LEAFIDX
+#define OFFSET_WOTS_MESSAGE_SIGNATURE \
+  OFFSET_MESSAGE_HASH_SEED + SIZEOF_MESSAGE_HASH_SEED
+#define OFFSET_SUBTREE_AUTHPATH \
+  OFFSET_WOTS_MESSAGE_SIGNATURE + SIZEOF_WOTS_MESSAGE_SIGNATURE
+#define OFFSET_HORST_SIGNATURE \
+  OFFSET_SUBTREE_AUTHPATH + SIZEOF_SUBTREE_AUTHPATH
+#define OFFSET_WOTS_SIGNATURES_AND_AUTHPATHS \
+  OFFSET_HORST_SIGNATURE + SIZEOF_HORST_SIGNATURE
+#define OFFSET_MESSAGE \
+  OFFSET_WOTS_SIGNATURES_AND_AUTHPATHS + SIZEOF_WOTS_SIGNATURES_AND_AUTHPATHS
+
 /*
  * The signature consists of:
  *  - the message hash seed
@@ -33,7 +65,7 @@ typedef uint8_t TSUBTREE_IDX;
  *    subtree, in which a message is signed
  *  - the authentication path through the entire hypertree
  */
-#define CRYPTO_BYTES (MESSAGE_HASH_SEED_BYTES + (TOTALTREE_HEIGHT+7)/8 + \
+#define CRYPTO_BYTES (MESSAGE_HASH_SEED_BYTES + 2*(sizeof(unsigned long long)) + \
                       STS_HORST_SIGBYTES +                              \
                       STS_WOTS_SIGBYTES +                               \
                       (N_LEVELS - 1)*WOTS_SIGBYTES +                    \
