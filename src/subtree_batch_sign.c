@@ -165,7 +165,7 @@ static int increment_sts(unsigned char *sts_bytes)
 
   // Make sure that the next leafidx actually exists in the
   // short-time subtree
-  if(*sts.next_subtree_leafidx < (1 << SUBTREE_HEIGHT)) {
+  if(*sts.next_subtree_leafidx < (1 << STS_SUBTREE_HEIGHT)) {
     // Increment the leafidx that will be used for the next leaf
     (*sts.next_subtree_leafidx)++;
     return 0;
@@ -255,7 +255,7 @@ int crypto_sts_init(unsigned char *sts_buffer, const unsigned char *sk, long lon
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
   sts_tree_hash_conf(root,
                      sts.wots_kps,
-                     SUBTREE_HEIGHT,
+                     STS_SUBTREE_HEIGHT,
                      sts.subtree_sk_seed,
                      addr_bytes,
                      public_seed,
@@ -290,7 +290,7 @@ long long crypto_sts_remaining_uses(unsigned char *sts_bytes)
 {
   struct batch_sts sts = init_batch_sts(sts_bytes);
 
-  return (1 << SUBTREE_HEIGHT) - *sts.next_subtree_leafidx;
+  return (1 << STS_SUBTREE_HEIGHT) - *sts.next_subtree_leafidx;
 }
 
 int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
@@ -378,8 +378,8 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
     // that seed, rather than the secret key. Otherwise the key pairs
     // would be the same for each short-time state.
     compute_authpath(m_h, sig.subtree_authpath, addr_bytes, sts.wots_kps,
-                     sts.subtree_sk_seed, SUBTREE_HEIGHT, public_seed);
-    *slen += SUBTREE_HEIGHT*HASH_BYTES;
+                     sts.subtree_sk_seed, STS_SUBTREE_HEIGHT, public_seed);
+    *slen += STS_SUBTREE_HEIGHT*HASH_BYTES;
 
   }
 
@@ -454,7 +454,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     // validate_authpath(root, pkhash, leafidx & 0x1f, sigp, tpk, SUBTREE_HEIGHT);
     validate_authpath(restored_subtree_root, pk_hash, addr_bytes, public_seed,
                       sig.subtree_authpath,
-                      SUBTREE_HEIGHT);
+                      STS_SUBTREE_HEIGHT);
 
   }
 

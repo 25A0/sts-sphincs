@@ -181,7 +181,7 @@ int test06()
   // Right after creating the STS, there should be a full subtree of remaining uses
   long long remaining_uses;
   remaining_uses = crypto_sts_remaining_uses(sts);
-  if(remaining_uses != (1 << SUBTREE_HEIGHT)) return -1;
+  if(remaining_uses != (1 << STS_SUBTREE_HEIGHT)) return -1;
 
   // Now we sign a message
   unsigned long long mlen = 32;
@@ -195,7 +195,7 @@ int test06()
 
   // And after that we should have one fewer remaining uses
   remaining_uses = crypto_sts_remaining_uses(sts);
-  if(remaining_uses != (1 << SUBTREE_HEIGHT) - 1) return -1;
+  if(remaining_uses != (1 << STS_SUBTREE_HEIGHT) - 1) return -1;
 
   return 0;
 }

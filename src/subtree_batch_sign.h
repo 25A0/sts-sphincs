@@ -6,8 +6,8 @@
 
 // When changing the subtree height, make sure that the type used for the
 // subtree height index is still large enough to capture all indices.
-// That is, ensure that SUBTREE_HEIGHT < sizeof(TSUBTREE_IDX) * 8
-typedef uint8_t TSUBTREE_IDX;
+// That is, ensure that STS_SUBTREE_HEIGHT < sizeof(TSUBTREE_IDX) * 8
+typedef unsigned long long TSUBTREE_IDX;
 
 // To sign 64 Bytes with WOTS_LOGW = 4, L1 is (64 * 8)/4 = 128.
 // Accordingly, l2 is ceil(ceil(log_2(128 * (16 - 1)))/4) = 3
@@ -19,6 +19,8 @@ typedef uint8_t TSUBTREE_IDX;
 #define STS_HORST_K 16
 #define STS_HORST_SIGBYTES (64*HASH_BYTES+(((HORST_LOGT-6)*HASH_BYTES)+\
                                            HORST_SKBYTES)*STS_HORST_K)
+
+#define STS_SUBTREE_HEIGHT 6
 
 #define CRYPTO_SECRETKEYBYTES (SEED_BYTES + PUBLIC_SEED_BYTES + \
                                SK_RAND_SEED_BYTES)
@@ -40,7 +42,7 @@ typedef uint8_t TSUBTREE_IDX;
 #define SIZEOF_SIG_SUBTREE_LEAFIDX sizeof(unsigned long long)
 #define SIZEOF_SIG_MESSAGE_HASH_SEED MESSAGE_HASH_SEED_BYTES
 #define SIZEOF_SIG_WOTS_MESSAGE_SIGNATURE STS_WOTS_SIGBYTES
-#define SIZEOF_SIG_SUBTREE_AUTHPATH (SUBTREE_HEIGHT * HASH_BYTES)
+#define SIZEOF_SIG_SUBTREE_AUTHPATH (STS_SUBTREE_HEIGHT * HASH_BYTES)
 #define SIZEOF_SIG_HORST_SIGNATURE STS_HORST_SIGBYTES
 #define SIZEOF_SIG_WOTS_SIGNATURES_AND_AUTHPATHS ((N_LEVELS) *          \
                                               (WOTS_SIGBYTES +          \
@@ -89,7 +91,7 @@ typedef uint8_t TSUBTREE_IDX;
  */
 #define SIZEOF_STS_SUBTREE_SK_SEED SEED_BYTES
 #define SIZEOF_STS_NEXT_SUBTREE_LEAFIDX sizeof(TSUBTREE_IDX)
-#define SIZEOF_STS_WOTS_KPS (1<<SUBTREE_HEIGHT) * HASH_BYTES
+#define SIZEOF_STS_WOTS_KPS (1<<STS_SUBTREE_HEIGHT) * HASH_BYTES
 #define SIZEOF_STS_LEAFIDX ((TOTALTREE_HEIGHT + 7) / 8)
 #define SIZEOF_STS_HORST_SIGNATURE STS_HORST_SIGBYTES
 #define SIZEOF_STS_WOTS_SIGNATURES_AND_AUTHPATHS ((N_LEVELS) *      \

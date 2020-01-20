@@ -49,17 +49,17 @@ int bench()
   {
     unsigned long start = GetCC();
     int i;
-    for(i = 0; i < (1 << SUBTREE_HEIGHT); i++) {
+    for(i = 0; i < (1 << STS_SUBTREE_HEIGHT); i++) {
       res |= crypto_sts_sign(sm1, &slen1, message, mlen, sts, sk);
       if(res != 0) return res;
     }
     unsigned long end = GetCC();
     char desc[24];
-    snprintf(desc, sizeof(desc), "Sign, %d signatures", 1<<SUBTREE_HEIGHT);
+    snprintf(desc, sizeof(desc), "Sign, %d signatures", 1<<STS_SUBTREE_HEIGHT);
     print_cycles(desc, start, end);
     // Print an average cycle count per signature
     unsigned long total = end - start;
-    double avg = (double) total / (double)(1<<SUBTREE_HEIGHT);
+    double avg = (double) total / (double)(1<<STS_SUBTREE_HEIGHT);
     print_cycles("Sign, avg per signature", start, start + avg);
   }
 
