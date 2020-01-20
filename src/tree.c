@@ -327,17 +327,17 @@ void compute_authpath_wots_conf(unsigned char root[HASH_BYTES],
   // The index of the node that will be authenticated with the auth path
   int node = *addr.subtree_node;
 
-  unsigned char leaves[(1<<SUBTREE_HEIGHT)*HASH_BYTES];
-  unsigned char seed[(1<<SUBTREE_HEIGHT)*SEED_BYTES];
-  unsigned char pk[(1<<SUBTREE_HEIGHT)*config.wots_l*HASH_BYTES];
+  unsigned char leaves[(1<<height)*HASH_BYTES];
+  unsigned char seed[(1<<height)*SEED_BYTES];
+  unsigned char pk[(1<<height)*config.wots_l*HASH_BYTES];
 
   // level 0
-  for(i = 0; i < (1<<SUBTREE_HEIGHT); i++) {
+  for(i = 0; i < (1<<height); i++) {
     *addr.subtree_node = i;
     get_seed(seed + i * SEED_BYTES, sk, address);
   }
 
-  for(i = 0; i < (1<<SUBTREE_HEIGHT); i++) {
+  for(i = 0; i < (1<<height); i++) {
     *addr.subtree_node = i;
     wots_pkgen_conf(pk + i * config.wots_l*HASH_BYTES,
                     seed + i * SEED_BYTES,
@@ -346,7 +346,7 @@ void compute_authpath_wots_conf(unsigned char root[HASH_BYTES],
                     config);
   }
 
-  for(i = 0; i < (1<<SUBTREE_HEIGHT); i++) {
+  for(i = 0; i < (1<<height); i++) {
     *addr.subtree_node = i;
     l_tree_conf(leaves + i * HASH_BYTES,
                 pk  + i * config.wots_l*HASH_BYTES,
@@ -378,15 +378,15 @@ void compute_authpath(unsigned char root[HASH_BYTES],
   // The index of the node that will be authenticated with the auth path
   int node = *addr.subtree_node;
 
-  unsigned char tree[2*(1<<SUBTREE_HEIGHT)*HASH_BYTES];
-  zerobytes(tree, 2*(1<<SUBTREE_HEIGHT)*HASH_BYTES);
-  memcpy(tree + (1<<SUBTREE_HEIGHT) * HASH_BYTES, leaves, (1<<height) * HASH_BYTES);
+  unsigned char tree[2*(1<<height)*HASH_BYTES];
+  zerobytes(tree, 2*(1<<height)*HASH_BYTES);
+  memcpy(tree + (1<<height) * HASH_BYTES, leaves, (1<<height) * HASH_BYTES);
   int level = 0;
 
   set_type(address, SPHINCS_ADDR);
 
   // tree
-  for (i = (1<<SUBTREE_HEIGHT); i > 0; i>>=1)
+  for (i = (1<<height); i > 0; i>>=1)
   {
     for (j = 0; j < i; j+=2) {
       *addr.subtree_node = node_index(height, level+1, j >> 1);
@@ -404,7 +404,7 @@ void compute_authpath(unsigned char root[HASH_BYTES],
 
   // copy authpath
   for(i=0;i<height;i++)
-    memcpy(authpath + i*HASH_BYTES, tree + ((1<<SUBTREE_HEIGHT)>>i)*HASH_BYTES + ((idx >> i) ^ 1) * HASH_BYTES, HASH_BYTES);
+    memcpy(authpath + i*HASH_BYTES, tree + ((1<<height)>>i)*HASH_BYTES + ((idx >> i) ^ 1) * HASH_BYTES, HASH_BYTES);
 
   // copy root
   memcpy(root, tree+HASH_BYTES, HASH_BYTES);
