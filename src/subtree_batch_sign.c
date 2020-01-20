@@ -21,8 +21,15 @@ struct batch_sts{
   // message
   TSUBTREE_IDX* next_subtree_leafidx;
 
-  // The public keys of the WOTS key pairs in the short-time subtree
-  unsigned char* wots_kps;
+  // The public keys of the WOTS key pairs in the left half of the short-time subtree
+  unsigned char* wots_kps_left;
+
+  // The public keys of the WOTS key pairs in the right half of the short-time subtree
+  unsigned char* wots_kps_right;
+
+  // The two sibling nodes on layer STS_SUBTREE_HEIGHT - 1 of the STS subtree
+  unsigned char* sibling_left;
+  unsigned char* sibling_right;
 
   // The leaf index that is parent to the short-time subtree
   unsigned long long* leafidx;
@@ -40,7 +47,10 @@ const struct batch_sts init_batch_sts(unsigned char *bytes) {
   struct batch_sts sts = {
     .subtree_sk_seed = bytes + OFFSET_STS_SUBTREE_SK_SEED,
     .next_subtree_leafidx = (TSUBTREE_IDX*) (bytes + OFFSET_STS_NEXT_SUBTREE_LEAFIDX),
-    .wots_kps = bytes + OFFSET_STS_WOTS_KPS,
+    .wots_kps_left = bytes + OFFSET_STS_WOTS_KPS_LEFT,
+    .wots_kps_right = bytes + OFFSET_STS_WOTS_KPS_RIGHT,
+    .sibling_left = bytes + OFFSET_STS_SIBLING_LEFT,
+    .sibling_right = bytes + OFFSET_STS_SIBLING_RIGHT,
     .leafidx = (unsigned long long*) (bytes + OFFSET_STS_LEAFIDX),
     .horst_signature = bytes + OFFSET_STS_HORST_SIGNATURE,
     .wots_signatures = bytes + OFFSET_STS_WOTS_SIGNATURES_AND_AUTHPATHS,
@@ -58,6 +68,10 @@ struct signature {
 
   // the authpath through the STS subtree
   unsigned char* subtree_authpath;
+
+  // the sibling node of the node in the STS subtree that is restored with the
+  // subtree_authpath
+  unsigned char* subtree_sibling;
 
   // The index of the HORST leaf that signed the subtree
   unsigned long long* leafidx;
@@ -95,6 +109,9 @@ struct signature init_signature(unsigned char* bytes) {
 
     // the authpath through the STS subtree
     .subtree_authpath = bytes + OFFSET_SIG_SUBTREE_AUTHPATH,
+
+    // the authpath through the STS subtree
+    .subtree_sibling = bytes + OFFSET_SIG_SUBTREE_SIBLING,
 
     // the HORST signature that signs the subtree nodes
     .horst_signature = bytes + OFFSET_SIG_HORST_SIGNATURE,
@@ -232,15 +249,22 @@ int crypto_sts_init(unsigned char *sts_buffer, const unsigned char *sk, long lon
   struct hash_addr address = init_hash_addr(addr_bytes);
   set_type(addr_bytes, SPHINCS_ADDR);
   *address.subtree_layer = 0;
-  *address.subtree_address = *sts.leafidx;
   *address.subtree_node = *sts.next_subtree_leafidx;
 
   // Build the root of the short-time subtree
-  unsigned char root[HASH_BYTES];
   const unsigned char* public_seed = get_public_seed_from_sk(sk);
-  sts_tree_hash_conf(root,
-                     sts.wots_kps,
-                     STS_SUBTREE_HEIGHT,
+  *address.subtree_address = *sts.leafidx * 2;
+  sts_tree_hash_conf(sts.sibling_left,
+                     sts.wots_kps_left,
+                     STS_SUBTREE_HEIGHT - 1,
+                     sts.subtree_sk_seed,
+                     addr_bytes,
+                     public_seed,
+                     sts_wots_config);
+  *address.subtree_address = *sts.leafidx * 2 + 1;
+  sts_tree_hash_conf(sts.sibling_right,
+                     sts.wots_kps_right,
+                     STS_SUBTREE_HEIGHT - 1,
                      sts.subtree_sk_seed,
                      addr_bytes,
                      public_seed,
@@ -255,9 +279,19 @@ int crypto_sts_init(unsigned char *sts_buffer, const unsigned char *sk, long lon
   unsigned char seed[SEED_BYTES];
   get_seed(seed, sk, addr_bytes);
 
+  unsigned int horst_msg_size = SIZEOF_STS_SIBLING_LEFT + SIZEOF_STS_SIBLING_RIGHT;
+  assert(horst_msg_size == STS_HORST_K * HORST_LOGT / 8);
+  unsigned char horst_msg[horst_msg_size];
+  memcpy(horst_msg,
+         sts.sibling_left, SIZEOF_STS_SIBLING_LEFT);
+  memcpy(horst_msg + SIZEOF_STS_SIBLING_LEFT,
+         sts.sibling_right, SIZEOF_STS_SIBLING_RIGHT);
+
   unsigned char horst_root[HASH_BYTES];
   horst_sign_conf(sts.horst_signature, horst_root, &horst_sigbytes, seed,
-                  addr_bytes, root, HASH_BYTES, sts_horst_config);
+                  addr_bytes,
+                  horst_msg, horst_msg_size,
+                  sts_horst_config);
 
   *address.subtree_layer = 1;
   unsigned long long clen = 0;
@@ -308,11 +342,19 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
     // Generate an address for this subtree
     unsigned char addr_bytes[ADDR_BYTES];
     zerobytes(addr_bytes, ADDR_BYTES);
+
     struct hash_addr address = init_hash_addr(addr_bytes);
     set_type(addr_bytes, SPHINCS_ADDR);
     *address.subtree_layer = 0;
-    *address.subtree_address = *sts.leafidx;
-    *address.subtree_node = subtree_leafidx;
+    // Map the subtree node to a node that actually fits into the
+    // real subtrees
+    *address.subtree_node = subtree_leafidx % (1<<(STS_SUBTREE_HEIGHT - 1));
+
+    if(subtree_leafidx < (1<<(STS_SUBTREE_HEIGHT - 1))) {
+      *address.subtree_address = *sts.leafidx * 2;
+    } else {
+      *address.subtree_address = *sts.leafidx * 2 + 1;
+    }
 
     unsigned char seed[SEED_BYTES];
     // Note that the WOTS seed is generated from the seed stored in the short-time
@@ -356,8 +398,20 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
     // secret key. This is so that WOTS key pairs can be generated based on
     // that seed, rather than the secret key. Otherwise the key pairs
     // would be the same for each short-time state.
-    compute_authpath(m_h, sig.subtree_authpath, addr_bytes, sts.wots_kps,
-                     sts.subtree_sk_seed, STS_SUBTREE_HEIGHT, public_seed);
+    if(subtree_leafidx < (1<<(STS_SUBTREE_HEIGHT - 1))) {
+      // the used leaf node is part of the left half of the STS subtree
+
+      compute_authpath(m_h, sig.subtree_authpath, addr_bytes, sts.wots_kps_left,
+                       sts.subtree_sk_seed, STS_SUBTREE_HEIGHT - 1, public_seed);
+      memcpy(sig.subtree_sibling, sts.sibling_right, SIZEOF_STS_SIBLING_RIGHT);
+    } else {
+      // the used leaf node is part of the right half of the STS subtree
+
+      compute_authpath(m_h, sig.subtree_authpath, addr_bytes, sts.wots_kps_right,
+                       sts.subtree_sk_seed, STS_SUBTREE_HEIGHT - 1, public_seed);
+      memcpy(sig.subtree_sibling, sts.sibling_left, SIZEOF_STS_SIBLING_LEFT);
+    }
+
   }
 
   // Copy the remaining SPHINCS signature to the signature buffer
@@ -391,7 +445,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
   unsigned long long leafidx = *sig.leafidx;
 
   // Restore the root of the short-time subtree
-  unsigned char restored_subtree_root[HASH_BYTES];
+  unsigned char restored_subtree_nodes[2*HASH_BYTES];
   {
 
 
@@ -416,8 +470,16 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     struct hash_addr address = init_hash_addr(addr_bytes);
     set_type(addr_bytes, SPHINCS_ADDR);
     *address.subtree_layer = 0;
-    *address.subtree_address = leafidx;
-    *address.subtree_node = subtree_leafidx;
+
+    // Map the subtree node to a node that actually fits into the
+    // real subtrees
+    *address.subtree_node = subtree_leafidx % (1<<(STS_SUBTREE_HEIGHT - 1));
+
+    if(subtree_leafidx < (1<<(STS_SUBTREE_HEIGHT - 1))) {
+      *address.subtree_address = leafidx * 2;
+    } else {
+      *address.subtree_address = leafidx * 2 + 1;
+    }
 
     // The public key components will be stored in this buffer
     unsigned char wots_pk[sts_wots_config.wots_l * HASH_BYTES];
@@ -429,9 +491,17 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     l_tree_conf(pk_hash, wots_pk, addr_bytes, public_seed, sts_wots_config);
 
     // validate_authpath(root, pkhash, leafidx & 0x1f, sigp, tpk, SUBTREE_HEIGHT);
-    validate_authpath(restored_subtree_root, pk_hash, addr_bytes, public_seed,
-                      sig.subtree_authpath,
-                      STS_SUBTREE_HEIGHT);
+    if(subtree_leafidx < (1<<(STS_SUBTREE_HEIGHT - 1))) {
+      validate_authpath(restored_subtree_nodes, pk_hash, addr_bytes, public_seed,
+                        sig.subtree_authpath,
+                        STS_SUBTREE_HEIGHT - 1);
+      memcpy(restored_subtree_nodes + HASH_BYTES, sig.subtree_sibling, HASH_BYTES);
+    } else {
+      memcpy(restored_subtree_nodes, sig.subtree_sibling, HASH_BYTES);
+      validate_authpath(restored_subtree_nodes + HASH_BYTES, pk_hash, addr_bytes, public_seed,
+                        sig.subtree_authpath,
+                        STS_SUBTREE_HEIGHT - 1);
+    }
 
   }
 
@@ -452,7 +522,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
   int res = horst_verify_conf(leaf,
                               sig.horst_signature,
                               addr_bytes,
-                              restored_subtree_root, HASH_BYTES,
+                              restored_subtree_nodes, 2*HASH_BYTES,
                               sts_horst_config);
   if(res) return res;
 

@@ -16,7 +16,7 @@ typedef unsigned long long TSUBTREE_IDX;
 #define STS_WOTS_LOG_L   7
 #define STS_WOTS_SIGBYTES (STS_WOTS_L * HASH_BYTES)
 
-#define STS_HORST_K 16
+#define STS_HORST_K 32
 #define STS_HORST_SIGBYTES (64*HASH_BYTES+(((HORST_LOGT-6)*HASH_BYTES)+\
                                            HORST_SKBYTES)*STS_HORST_K)
 
@@ -42,7 +42,8 @@ typedef unsigned long long TSUBTREE_IDX;
 #define SIZEOF_SIG_SUBTREE_LEAFIDX sizeof(unsigned long long)
 #define SIZEOF_SIG_MESSAGE_HASH_SEED MESSAGE_HASH_SEED_BYTES
 #define SIZEOF_SIG_WOTS_MESSAGE_SIGNATURE STS_WOTS_SIGBYTES
-#define SIZEOF_SIG_SUBTREE_AUTHPATH (STS_SUBTREE_HEIGHT * HASH_BYTES)
+#define SIZEOF_SIG_SUBTREE_AUTHPATH ((STS_SUBTREE_HEIGHT - 1) * HASH_BYTES)
+#define SIZEOF_SIG_SUBTREE_SIBLING HASH_BYTES
 #define SIZEOF_SIG_HORST_SIGNATURE STS_HORST_SIGBYTES
 #define SIZEOF_SIG_WOTS_SIGNATURES_AND_AUTHPATHS ((N_LEVELS) *          \
                                               (WOTS_SIGBYTES +          \
@@ -61,8 +62,10 @@ typedef unsigned long long TSUBTREE_IDX;
   (OFFSET_SIG_MESSAGE_HASH_SEED + SIZEOF_SIG_MESSAGE_HASH_SEED)
 #define OFFSET_SIG_SUBTREE_AUTHPATH                                     \
   (OFFSET_SIG_WOTS_MESSAGE_SIGNATURE + SIZEOF_SIG_WOTS_MESSAGE_SIGNATURE)
-#define OFFSET_SIG_HORST_SIGNATURE                              \
+#define OFFSET_SIG_SUBTREE_SIBLING                              \
   (OFFSET_SIG_SUBTREE_AUTHPATH + SIZEOF_SIG_SUBTREE_AUTHPATH)
+#define OFFSET_SIG_HORST_SIGNATURE                              \
+  (OFFSET_SIG_SUBTREE_SIBLING + SIZEOF_SIG_SUBTREE_SIBLING)
 #define OFFSET_SIG_WOTS_SIGNATURES_AND_AUTHPATHS                \
   (OFFSET_SIG_HORST_SIGNATURE + SIZEOF_SIG_HORST_SIGNATURE)
 #define OFFSET_SIG_MESSAGE                                              \
@@ -73,6 +76,7 @@ typedef unsigned long long TSUBTREE_IDX;
                       SIZEOF_SIG_MESSAGE_HASH_SEED +                        \
                       SIZEOF_SIG_WOTS_MESSAGE_SIGNATURE +                   \
                       SIZEOF_SIG_SUBTREE_AUTHPATH +                         \
+                      SIZEOF_SIG_SUBTREE_SIBLING +                         \
                       SIZEOF_SIG_HORST_SIGNATURE +                          \
                       SIZEOF_SIG_WOTS_SIGNATURES_AND_AUTHPATHS)
 
@@ -91,7 +95,10 @@ typedef unsigned long long TSUBTREE_IDX;
  */
 #define SIZEOF_STS_SUBTREE_SK_SEED SEED_BYTES
 #define SIZEOF_STS_NEXT_SUBTREE_LEAFIDX sizeof(TSUBTREE_IDX)
-#define SIZEOF_STS_WOTS_KPS (1<<STS_SUBTREE_HEIGHT) * HASH_BYTES
+#define SIZEOF_STS_WOTS_KPS_LEFT (1<<(STS_SUBTREE_HEIGHT-1)) * HASH_BYTES
+#define SIZEOF_STS_WOTS_KPS_RIGHT (1<<(STS_SUBTREE_HEIGHT-1)) * HASH_BYTES
+#define SIZEOF_STS_SIBLING_LEFT HASH_BYTES
+#define SIZEOF_STS_SIBLING_RIGHT HASH_BYTES
 #define SIZEOF_STS_LEAFIDX ((TOTALTREE_HEIGHT + 7) / 8)
 #define SIZEOF_STS_HORST_SIGNATURE STS_HORST_SIGBYTES
 #define SIZEOF_STS_WOTS_SIGNATURES_AND_AUTHPATHS ((N_LEVELS) *      \
@@ -101,22 +108,31 @@ typedef unsigned long long TSUBTREE_IDX;
 #define OFFSET_STS_SUBTREE_SK_SEED 0
 #define OFFSET_STS_NEXT_SUBTREE_LEAFIDX                         \
   (OFFSET_STS_SUBTREE_SK_SEED + SIZEOF_STS_SUBTREE_SK_SEED)
-#define OFFSET_STS_WOTS_KPS                                             \
+#define OFFSET_STS_WOTS_KPS_LEFT                                             \
   (OFFSET_STS_NEXT_SUBTREE_LEAFIDX + SIZEOF_STS_NEXT_SUBTREE_LEAFIDX)
+#define OFFSET_STS_WOTS_KPS_RIGHT                                             \
+  (OFFSET_STS_WOTS_KPS_LEFT + SIZEOF_STS_WOTS_KPS_RIGHT)
+#define OFFSET_STS_SIBLING_LEFT \
+  (OFFSET_STS_WOTS_KPS_RIGHT + SIZEOF_STS_WOTS_KPS_RIGHT)
+#define OFFSET_STS_SIBLING_RIGHT \
+  (OFFSET_STS_SIBLING_LEFT + SIZEOF_STS_SIBLING_LEFT)
 #define OFFSET_STS_LEAFIDX                      \
-  (OFFSET_STS_WOTS_KPS + SIZEOF_STS_WOTS_KPS)
+  (OFFSET_STS_SIBLING_RIGHT + SIZEOF_STS_SIBLING_RIGHT)
 #define OFFSET_STS_HORST_SIGNATURE              \
   (OFFSET_STS_LEAFIDX + SIZEOF_STS_LEAFIDX)
 #define OFFSET_STS_WOTS_SIGNATURES_AND_AUTHPATHS                \
   (OFFSET_STS_HORST_SIGNATURE + SIZEOF_STS_HORST_SIGNATURE)
 
 #define CRYPTO_STS_BYTES (                      \
-  SIZEOF_STS_SUBTREE_SK_SEED +                  \
-  SIZEOF_STS_NEXT_SUBTREE_LEAFIDX +             \
-  SIZEOF_STS_WOTS_KPS +                         \
-  SIZEOF_STS_LEAFIDX +                          \
-  SIZEOF_STS_HORST_SIGNATURE +                  \
-  SIZEOF_STS_WOTS_SIGNATURES_AND_AUTHPATHS +    \
+    SIZEOF_STS_SUBTREE_SK_SEED +                \
+    SIZEOF_STS_NEXT_SUBTREE_LEAFIDX +           \
+    SIZEOF_STS_WOTS_KPS_LEFT +                  \
+    SIZEOF_STS_WOTS_KPS_RIGHT +                 \
+    SIZEOF_STS_SIBLING_LEFT +                   \
+    SIZEOF_STS_SIBLING_RIGHT +                  \
+    SIZEOF_STS_LEAFIDX +                        \
+    SIZEOF_STS_HORST_SIGNATURE +                \
+    SIZEOF_STS_WOTS_SIGNATURES_AND_AUTHPATHS +  \
   0)
 
 int crypto_sign_keypair(unsigned char *pk, unsigned char *sk);
