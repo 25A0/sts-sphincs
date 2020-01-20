@@ -24,6 +24,17 @@ typedef uint8_t TSUBTREE_IDX;
                                SK_RAND_SEED_BYTES)
 #define CRYPTO_PUBLICKEYBYTES (HASH_BYTES + PUBLIC_SEED_BYTES)
 
+/*
+ * The signature consists of:
+ *  - the message hash seed
+ *  - the index of the HORST key pair that was used to sign the subtree nodes
+ *  - the HORST signature that signs the subtree nodes
+ *  - the WOTS signature of the message
+ *  - one WOTS signature for each level of the hypertree except for the lowest
+ *    subtree, in which a message is signed
+ *  - the authentication path through the entire hypertree
+ */
+
 // Sizes of signature elements
 #define SIZEOF_LEAFIDX sizeof(unsigned long long)
 #define SIZEOF_SUBTREE_LEAFIDX sizeof(unsigned long long)
@@ -55,22 +66,14 @@ typedef uint8_t TSUBTREE_IDX;
 #define OFFSET_MESSAGE \
   OFFSET_WOTS_SIGNATURES_AND_AUTHPATHS + SIZEOF_WOTS_SIGNATURES_AND_AUTHPATHS
 
-/*
- * The signature consists of:
- *  - the message hash seed
- *  - the index of the HORST key pair that was used to sign the subtree nodes
- *  - the HORST signature that signs the subtree nodes
- *  - the WOTS signature of the message
- *  - one WOTS signature for each level of the hypertree except for the lowest
- *    subtree, in which a message is signed
- *  - the authentication path through the entire hypertree
- */
-#define CRYPTO_BYTES (MESSAGE_HASH_SEED_BYTES + 2*(sizeof(unsigned long long)) + \
-                      STS_HORST_SIGBYTES +                              \
-                      STS_WOTS_SIGBYTES +                               \
-                      (N_LEVELS - 1)*WOTS_SIGBYTES +                    \
-                      HASH_BYTES * (TOTALTREE_HEIGHT - SUBTREE_HEIGHT + \
-                                    SUBTREE_HEIGHT))
+#define CRYPTO_BYTES (SIZEOF_LEAFIDX +                                  \
+                      SIZEOF_SUBTREE_LEAFIDX +                          \
+                      SIZEOF_MESSAGE_HASH_SEED +                        \
+                      SIZEOF_WOTS_MESSAGE_SIGNATURE +                   \
+                      SIZEOF_SUBTREE_AUTHPATH +                         \
+                      SIZEOF_HORST_SIGNATURE +                          \
+                      SIZEOF_WOTS_SIGNATURES_AND_AUTHPATHS)
+
 #define CRYPTO_DETERMINISTIC 1
 
 /*
