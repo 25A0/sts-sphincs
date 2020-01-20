@@ -96,31 +96,31 @@ struct signature {
 struct signature init_signature(unsigned char* bytes) {
   struct signature sig = {
     // the index of the HORST key pair that was used to sign the subtree nodes
-    .leafidx = (unsigned long long*) (bytes + OFFSET_LEAFIDX),
+    .leafidx = (unsigned long long*) (bytes + OFFSET_SIG_LEAFIDX),
 
     // the index of the WOTS key pair within the subtree that was used
     // to sign the message
-    .subtree_leafidx = (unsigned long long*) (bytes + OFFSET_SUBTREE_LEAFIDX),
+    .subtree_leafidx = (unsigned long long*) (bytes + OFFSET_SIG_SUBTREE_LEAFIDX),
 
     // the message hash seed
-    .message_hash_seed = bytes + OFFSET_MESSAGE_HASH_SEED,
+    .message_hash_seed = bytes + OFFSET_SIG_MESSAGE_HASH_SEED,
 
     // the WOTS signature of the message
-    .wots_message_signature = bytes + OFFSET_WOTS_MESSAGE_SIGNATURE,
+    .wots_message_signature = bytes + OFFSET_SIG_WOTS_MESSAGE_SIGNATURE,
 
     // the authpath through the STS subtree
-    .subtree_authpath = bytes + OFFSET_SUBTREE_AUTHPATH,
+    .subtree_authpath = bytes + OFFSET_SIG_SUBTREE_AUTHPATH,
 
     // the HORST signature that signs the subtree nodes
-    .horst_signature = bytes + OFFSET_HORST_SIGNATURE,
+    .horst_signature = bytes + OFFSET_SIG_HORST_SIGNATURE,
 
     // one WOTS signature for each level of the hypertree except for the lowest
     // subtree, in which a message is signed
     // the authentication path through the entire hypertree
-    .wots_signatures = bytes + OFFSET_WOTS_SIGNATURES_AND_AUTHPATHS,
+    .wots_signatures = bytes + OFFSET_SIG_WOTS_SIGNATURES_AND_AUTHPATHS,
 
     // The message is always at the very end of the signature
-    .message = bytes + OFFSET_MESSAGE,
+    .message = bytes + OFFSET_SIG_MESSAGE,
 
   };
   return sig;
@@ -499,7 +499,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
 
   // Restore the root of the hypertree
   res = verify_leaf(leaf, N_LEVELS - 1,
-                    sig.wots_signatures, SIZEOF_WOTS_SIGNATURES_AND_AUTHPATHS,
+                    sig.wots_signatures, SIZEOF_SIG_WOTS_SIGNATURES_AND_AUTHPATHS,
                     pk,
                     addr_bytes);
   if(res) return res;
