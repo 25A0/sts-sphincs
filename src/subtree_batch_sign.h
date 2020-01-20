@@ -49,22 +49,22 @@ typedef uint8_t TSUBTREE_IDX;
 // Offsets of signature elements. These determine the order of the elements.
 // The offset of the element is the offset of the previous element plus
 // the size of the previous element
-#define OFFSET_SIG_LEAFIDX \
-  0
-#define OFFSET_SIG_SUBTREE_LEAFIDX \
-  OFFSET_SIG_LEAFIDX + SIZEOF_SIG_LEAFIDX
-#define OFFSET_SIG_MESSAGE_HASH_SEED \
-  OFFSET_SIG_SUBTREE_LEAFIDX + SIZEOF_SIG_SUBTREE_LEAFIDX
-#define OFFSET_SIG_WOTS_MESSAGE_SIGNATURE \
-  OFFSET_SIG_MESSAGE_HASH_SEED + SIZEOF_SIG_MESSAGE_HASH_SEED
-#define OFFSET_SIG_SUBTREE_AUTHPATH \
-  OFFSET_SIG_WOTS_MESSAGE_SIGNATURE + SIZEOF_SIG_WOTS_MESSAGE_SIGNATURE
-#define OFFSET_SIG_HORST_SIGNATURE \
-  OFFSET_SIG_SUBTREE_AUTHPATH + SIZEOF_SIG_SUBTREE_AUTHPATH
-#define OFFSET_SIG_WOTS_SIGNATURES_AND_AUTHPATHS \
-  OFFSET_SIG_HORST_SIGNATURE + SIZEOF_SIG_HORST_SIGNATURE
-#define OFFSET_SIG_MESSAGE \
-  OFFSET_SIG_WOTS_SIGNATURES_AND_AUTHPATHS + SIZEOF_SIG_WOTS_SIGNATURES_AND_AUTHPATHS
+#define OFFSET_SIG_LEAFIDX                                      \
+  (0)
+#define OFFSET_SIG_SUBTREE_LEAFIDX                              \
+  (OFFSET_SIG_LEAFIDX + SIZEOF_SIG_LEAFIDX)
+#define OFFSET_SIG_MESSAGE_HASH_SEED                            \
+  (OFFSET_SIG_SUBTREE_LEAFIDX + SIZEOF_SIG_SUBTREE_LEAFIDX)
+#define OFFSET_SIG_WOTS_MESSAGE_SIGNATURE                       \
+  (OFFSET_SIG_MESSAGE_HASH_SEED + SIZEOF_SIG_MESSAGE_HASH_SEED)
+#define OFFSET_SIG_SUBTREE_AUTHPATH                                     \
+  (OFFSET_SIG_WOTS_MESSAGE_SIGNATURE + SIZEOF_SIG_WOTS_MESSAGE_SIGNATURE)
+#define OFFSET_SIG_HORST_SIGNATURE                              \
+  (OFFSET_SIG_SUBTREE_AUTHPATH + SIZEOF_SIG_SUBTREE_AUTHPATH)
+#define OFFSET_SIG_WOTS_SIGNATURES_AND_AUTHPATHS                \
+  (OFFSET_SIG_HORST_SIGNATURE + SIZEOF_SIG_HORST_SIGNATURE)
+#define OFFSET_SIG_MESSAGE                                              \
+  (OFFSET_SIG_WOTS_SIGNATURES_AND_AUTHPATHS + SIZEOF_SIG_WOTS_SIGNATURES_AND_AUTHPATHS)
 
 #define CRYPTO_BYTES (SIZEOF_SIG_LEAFIDX +                                  \
                       SIZEOF_SIG_SUBTREE_LEAFIDX +                          \
@@ -87,12 +87,35 @@ typedef uint8_t TSUBTREE_IDX;
  *  - the authentication path throughout the entire hypertree, except for the
  *    lowest subtree
  */
-#define CRYPTO_STS_BYTES    (SEED_BYTES + sizeof(TSUBTREE_IDX) +        \
-                             (TOTALTREE_HEIGHT + 7) / 8 +               \
-                             (1<<SUBTREE_HEIGHT) * HASH_BYTES +         \
-                             STS_HORST_SIGBYTES +                       \
-                             (N_LEVELS - 1) * WOTS_SIGBYTES +           \
-                             (TOTALTREE_HEIGHT - SUBTREE_HEIGHT) * HASH_BYTES)
+#define SIZEOF_STS_SUBTREE_SK_SEED SEED_BYTES
+#define SIZEOF_STS_NEXT_SUBTREE_LEAFIDX sizeof(TSUBTREE_IDX)
+#define SIZEOF_STS_WOTS_KPS (1<<SUBTREE_HEIGHT) * HASH_BYTES
+#define SIZEOF_STS_LEAFIDX ((TOTALTREE_HEIGHT + 7) / 8)
+#define SIZEOF_STS_HORST_SIGNATURE STS_HORST_SIGBYTES
+#define SIZEOF_STS_WOTS_SIGNATURES_AND_AUTHPATHS ((N_LEVELS - 1) *      \
+                                                  (WOTS_SIGBYTES +      \
+                                                   SUBTREE_HEIGHT * HASH_BYTES))
+
+#define OFFSET_STS_SUBTREE_SK_SEED 0
+#define OFFSET_STS_NEXT_SUBTREE_LEAFIDX                         \
+  (OFFSET_STS_SUBTREE_SK_SEED + SIZEOF_STS_SUBTREE_SK_SEED)
+#define OFFSET_STS_WOTS_KPS                                             \
+  (OFFSET_STS_NEXT_SUBTREE_LEAFIDX + SIZEOF_STS_NEXT_SUBTREE_LEAFIDX)
+#define OFFSET_STS_LEAFIDX                      \
+  (OFFSET_STS_WOTS_KPS + SIZEOF_STS_WOTS_KPS)
+#define OFFSET_STS_HORST_SIGNATURE              \
+  (OFFSET_STS_LEAFIDX + SIZEOF_STS_LEAFIDX)
+#define OFFSET_STS_WOTS_SIGNATURES_AND_AUTHPATHS                \
+  (OFFSET_STS_HORST_SIGNATURE + SIZEOF_STS_HORST_SIGNATURE)
+
+#define CRYPTO_STS_BYTES (                      \
+  SIZEOF_STS_SUBTREE_SK_SEED +                  \
+  SIZEOF_STS_NEXT_SUBTREE_LEAFIDX +             \
+  SIZEOF_STS_WOTS_KPS +                         \
+  SIZEOF_STS_LEAFIDX +                          \
+  SIZEOF_STS_HORST_SIGNATURE +                  \
+  SIZEOF_STS_WOTS_SIGNATURES_AND_AUTHPATHS +    \
+  0)
 
 int crypto_sign_keypair(unsigned char *pk, unsigned char *sk);
 

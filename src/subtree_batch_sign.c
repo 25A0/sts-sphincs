@@ -37,29 +37,14 @@ struct batch_sts{
 };
 
 const struct batch_sts init_batch_sts(unsigned char *bytes) {
-  struct batch_sts sts;
-  int offset = 0;
-
-  sts.subtree_sk_seed = bytes + offset;
-  offset += SEED_BYTES;
-
-  sts.next_subtree_leafidx = (TSUBTREE_IDX*) (bytes + offset);
-  offset += sizeof(TSUBTREE_IDX);
-
-  sts.wots_kps = bytes + offset;
-  offset += (1 << SUBTREE_HEIGHT) * HASH_BYTES;
-
-  sts.leafidx = (unsigned long long*) (bytes + offset);
-  offset += (TOTALTREE_HEIGHT+7)/8;
-
-  sts.horst_signature = bytes + offset;
-  offset += STS_HORST_SIGBYTES;
-
-  sts.wots_signatures = bytes + offset;
-  offset += (N_LEVELS - 1) * WOTS_SIGBYTES +
-            (TOTALTREE_HEIGHT - SUBTREE_HEIGHT) * HASH_BYTES;
-
-  assert(offset == CRYPTO_STS_BYTES);
+  struct batch_sts sts = {
+    .subtree_sk_seed = bytes + OFFSET_STS_SUBTREE_SK_SEED,
+    .next_subtree_leafidx = bytes + OFFSET_STS_NEXT_SUBTREE_LEAFIDX,
+    .wots_kps = bytes + OFFSET_STS_WOTS_KPS,
+    .leafidx = (unsigned long long*) (bytes + OFFSET_STS_LEAFIDX),
+    .horst_signature = bytes + OFFSET_STS_HORST_SIGNATURE,
+    .wots_signatures = bytes + OFFSET_STS_WOTS_SIGNATURES_AND_AUTHPATHS,
+  };
 
   return sts;
 }
