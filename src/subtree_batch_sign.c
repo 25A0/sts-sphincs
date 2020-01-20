@@ -302,11 +302,8 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
 
   struct signature sig = init_signature(sig_bytes);
 
-  *slen = 0;
-
   // Start off by writing the used leaf idx to the signature
   memcpy(sig.leafidx, (unsigned char*) sts.leafidx, sizeof(unsigned long long));
-  *slen += sizeof(unsigned long long);
 
   // Do whatever needs to happen for crypto_sign_update
   {
@@ -315,7 +312,6 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
 
     // Store the used leaf idx in the signature
     memcpy(sig.subtree_leafidx, (unsigned char*) &subtree_leafidx, sizeof(unsigned long));
-    *slen += sizeof(unsigned long);
 
     // Update the sts so that the next signature uses the following leafidx
     // TODO: This needs to happen at the very beginning of the function
@@ -355,7 +351,6 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
 #endif
     varlen_hash(msg_hash_input, msg_hash_seed_input, msg_hash_seed_input_size);
     memcpy(sig.message_hash_seed, msg_hash_input, MESSAGE_HASH_SEED_BYTES);
-    *slen += MESSAGE_HASH_SEED_BYTES;
 
     memcpy(msg_hash_input + MESSAGE_HASH_SEED_BYTES, m, mlen);
 
@@ -370,7 +365,6 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
     const unsigned char* public_seed = get_public_seed_from_sk(sk);
 
     wots_sign_conf(sig.wots_message_signature, m_h, seed, public_seed, addr_bytes, sts_wots_config);
-    *slen += STS_WOTS_SIGBYTES;
 
     // Store the authentication path of that signature in the signature buffer
     // Note that the subtree seed is passed to this function instead of the
@@ -379,8 +373,6 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
     // would be the same for each short-time state.
     compute_authpath(m_h, sig.subtree_authpath, addr_bytes, sts.wots_kps,
                      sts.subtree_sk_seed, STS_SUBTREE_HEIGHT, public_seed);
-    *slen += STS_SUBTREE_HEIGHT*HASH_BYTES;
-
   }
 
   // Copy the remaining SPHINCS signature to the signature buffer
