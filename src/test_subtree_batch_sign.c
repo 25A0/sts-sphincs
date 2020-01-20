@@ -94,7 +94,7 @@ int test03()
   unsigned char sts[CRYPTO_STS_BYTES];
 
   // This number is exactly 1 larger than the largest valid subtree index
-  long long subtree_idx = (long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT);
+  long long subtree_idx = (long long) 1 << (TOTALTREE_HEIGHT);
 
   int res = 0;
   res |= crypto_sts_init(sts, sk, subtree_idx);
@@ -115,7 +115,7 @@ int test04()
   unsigned char sts_b[CRYPTO_STS_BYTES];
 
   // A random, but valid subtree index
-  long long upper = (long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT);
+  long long upper = (long long) 1 << (TOTALTREE_HEIGHT);
   long long subtree_idx = randomint(0, upper);
 
   int res = 0;

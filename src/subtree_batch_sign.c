@@ -131,7 +131,7 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
   unsigned char address[ADDR_BYTES];
   set_type(address, SPHINCS_ADDR);
   struct hash_addr addr = init_hash_addr(address);
-  *addr.subtree_layer = N_LEVELS - 1;
+  *addr.subtree_layer = N_LEVELS;
   *addr.subtree_address = 0;
   *addr.subtree_node = 0;
 
@@ -208,13 +208,13 @@ int crypto_sts_init(unsigned char *sts_buffer, const unsigned char *sk, long lon
     has_entropy = 1;
 
     *sts.leafidx = (rnd[next_unused_entropy++] &
-                        (((unsigned long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)) - 1));
+                        (((unsigned long long) 1 << (TOTALTREE_HEIGHT)) - 1));
   } else if(user_leaf_idx < 0) {
     // Other negative leaf indices are considered an error.
     // If someone tried to iterate through all leaves and caused an overflow,
     // this case would catch that, instead of starting to use random leaves.
     return -1;
-  } else if(user_leaf_idx >= (long long) 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT) ) {
+  } else if(user_leaf_idx >= (long long) 1 << (TOTALTREE_HEIGHT) ) {
     // This index is not a valid subtree index.
     return -2;
   } else {
@@ -277,7 +277,7 @@ int crypto_sts_init(unsigned char *sts_buffer, const unsigned char *sk, long lon
   *address.subtree_layer = 1;
   unsigned long long clen = 0;
 
-  int err = sign_leaf(horst_root, N_LEVELS - 1,
+  int err = sign_leaf(horst_root, N_LEVELS,
                       sts.wots_signatures, &clen,
                       sk,
                       addr_bytes);
@@ -388,8 +388,7 @@ int crypto_sts_sign(unsigned char *sig_bytes, unsigned long long *slen,
   memcpy(sig.horst_signature, sts.horst_signature, sts_horst_config.horst_sigbytes);
 
   memcpy(sig.wots_signatures, sts.wots_signatures,
-         (N_LEVELS -  1)*WOTS_SIGBYTES +
-         (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)*HASH_BYTES);
+         SIZEOF_STS_WOTS_SIGNATURES_AND_AUTHPATHS);
 
   *slen = CRYPTO_BYTES;
 
@@ -483,7 +482,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
   *address.subtree_layer = 1;
 
   // Restore the root of the hypertree
-  res = verify_leaf(leaf, N_LEVELS - 1,
+  res = verify_leaf(leaf, N_LEVELS,
                     sig.wots_signatures, SIZEOF_SIG_WOTS_SIGNATURES_AND_AUTHPATHS,
                     pk,
                     addr_bytes);

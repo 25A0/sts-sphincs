@@ -42,7 +42,7 @@ typedef uint8_t TSUBTREE_IDX;
 #define SIZEOF_SIG_WOTS_MESSAGE_SIGNATURE STS_WOTS_SIGBYTES
 #define SIZEOF_SIG_SUBTREE_AUTHPATH (SUBTREE_HEIGHT * HASH_BYTES)
 #define SIZEOF_SIG_HORST_SIGNATURE STS_HORST_SIGBYTES
-#define SIZEOF_SIG_WOTS_SIGNATURES_AND_AUTHPATHS ((N_LEVELS - 1) *          \
+#define SIZEOF_SIG_WOTS_SIGNATURES_AND_AUTHPATHS ((N_LEVELS) *          \
                                               (WOTS_SIGBYTES +          \
                                                HASH_BYTES * SUBTREE_HEIGHT))
 
@@ -92,7 +92,7 @@ typedef uint8_t TSUBTREE_IDX;
 #define SIZEOF_STS_WOTS_KPS (1<<SUBTREE_HEIGHT) * HASH_BYTES
 #define SIZEOF_STS_LEAFIDX ((TOTALTREE_HEIGHT + 7) / 8)
 #define SIZEOF_STS_HORST_SIGNATURE STS_HORST_SIGBYTES
-#define SIZEOF_STS_WOTS_SIGNATURES_AND_AUTHPATHS ((N_LEVELS - 1) *      \
+#define SIZEOF_STS_WOTS_SIGNATURES_AND_AUTHPATHS ((N_LEVELS) *      \
                                                   (WOTS_SIGBYTES +      \
                                                    SUBTREE_HEIGHT * HASH_BYTES))
 
@@ -130,9 +130,9 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
 /* Initialize a new short-time state (STS) based on the given secret key.
  * If a negative value is passed as the subtree index (subtree_idx),
  * a random subtree will be used.
- * If a subtree index between 0 and 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT)
+ * If a subtree index between 0 and 1 << (TOTALTREE_HEIGHT)
  * is passed, then that index will be used. The initialization will fail
- * with values larger than 1 << (TOTALTREE_HEIGHT - SUBTREE_HEIGHT).
+ * with values larger than 1 << (TOTALTREE_HEIGHT).
  */
 int crypto_sts_init(unsigned char *sts, const unsigned char *sk, long long subtree_idx);
 
