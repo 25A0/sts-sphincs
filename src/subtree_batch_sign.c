@@ -39,7 +39,7 @@ struct batch_sts{
 const struct batch_sts init_batch_sts(unsigned char *bytes) {
   struct batch_sts sts = {
     .subtree_sk_seed = bytes + OFFSET_STS_SUBTREE_SK_SEED,
-    .next_subtree_leafidx = bytes + OFFSET_STS_NEXT_SUBTREE_LEAFIDX,
+    .next_subtree_leafidx = (TSUBTREE_IDX*) (bytes + OFFSET_STS_NEXT_SUBTREE_LEAFIDX),
     .wots_kps = bytes + OFFSET_STS_WOTS_KPS,
     .leafidx = (unsigned long long*) (bytes + OFFSET_STS_LEAFIDX),
     .horst_signature = bytes + OFFSET_STS_HORST_SIGNATURE,
