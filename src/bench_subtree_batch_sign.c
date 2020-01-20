@@ -34,6 +34,8 @@ int bench()
 
   unsigned char sts[CRYPTO_STS_BYTES];
 
+  unsigned long long init_cycles;
+
   int res = 0;
   {
     unsigned long start = GetCC();
@@ -41,6 +43,7 @@ int bench()
     if(res != 0) return res;
     unsigned long end = GetCC();
     print_cycles("STS init", start, end);
+    init_cycles = end - start;
   }
 
   unsigned char sm1[CRYPTO_BYTES + mlen];
@@ -59,6 +62,8 @@ int bench()
     print_cycles(desc, start, end);
     // Print an average cycle count per signature
     unsigned long total = end - start;
+    // Add the cycle cost of STS initialization
+    total += init_cycles;
     double avg = (double) total / (double)(1<<STS_SUBTREE_HEIGHT);
     print_cycles("Sign, avg per signature", start, start + avg);
   }
