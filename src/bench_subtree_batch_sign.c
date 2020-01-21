@@ -24,6 +24,8 @@ int bench()
   print_bytes("crypto_publickeybytes", CRYPTO_PUBLICKEYBYTES);
   print_bytes("crypto_sts_bytes", CRYPTO_STS_BYTES);
   print_bytes("crypto_bytes", CRYPTO_BYTES);
+  print_number("subtree height", SUBTREE_HEIGHT);
+  print_number("sts subtree height", STS_SUBTREE_HEIGHT);
 
   {
     unsigned long start = GetCC();

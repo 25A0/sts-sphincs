@@ -20,7 +20,9 @@ typedef unsigned long long TSUBTREE_IDX;
 #define STS_HORST_SIGBYTES (64*HASH_BYTES+(((HORST_LOGT-6)*HASH_BYTES)+\
                                            HORST_SKBYTES)*STS_HORST_K)
 
-#define STS_SUBTREE_HEIGHT 6
+#ifndef STS_SUBTREE_HEIGHT
+#define STS_SUBTREE_HEIGHT 12
+#endif
 
 #define CRYPTO_SECRETKEYBYTES (SEED_BYTES + PUBLIC_SEED_BYTES + \
                                SK_RAND_SEED_BYTES)

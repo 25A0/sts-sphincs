@@ -55,3 +55,8 @@ void print_bytes(const char* desc, unsigned long bytes)
 {
   printf("%24s: %24lu B\n", desc, bytes);
 }
+
+void print_number(const char* desc, unsigned long n)
+{
+  printf("%24s: %24lu\n", desc, n);
+}

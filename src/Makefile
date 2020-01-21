@@ -9,7 +9,7 @@ NORMAL := $(shell tput sgr0)
 all: libsphincs.a libsphincs_sequential.a libsphincs_subtree.a ${TESTS} ${BENCHS} ${EXAMPLES}
 
 INCDIRS=-I. -I./include
-CFLAGS=-g -Wall
+CFLAGS=-g -Wall -DSUBTREE_HEIGHT=${SUBTREE_HEIGHT} -DSTS_SUBTREE_HEIGHT=${STS_SUBTREE_HEIGHT}
 
 .PHONY = clean test bench
 
