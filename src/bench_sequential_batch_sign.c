@@ -63,10 +63,12 @@ int bench()
     print_cycles(desc, start, end);
     // Print an average cycle count per signature
     unsigned long total = end - start;
-    // Add the cycle cost of STS initialization
-    total += init_cycles;
     double avg = (double) total / (double)(1<<SUBTREE_HEIGHT);
     print_cycles("Sign, avg per signature", start, start + avg);
+    // Add the cycle cost of STS initialization
+    total += init_cycles;
+    avg = (double) total / (double)(1<<SUBTREE_HEIGHT);
+    print_cycles("Sign, avg incl. init", start, start + avg);
   }
 
   {
