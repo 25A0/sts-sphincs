@@ -13,6 +13,10 @@ the [SPHINCS signature scheme](https://sphincs.cr.yp.to/index.html) published in
  - This version of SPHINCS comes with an extended API to expose the batch
    signing capabilities. The extended API is explained below.
 
+**Should you use this to actually create and verify signatures of important messages?**
+Absolutely not. This code has not been reviewed or audited by anyone, and I'm a master's
+student with little experience when it comes to writing secure code.
+
 ## Batch signing API
 
 This version of SPHINCS offers an API for faster signatures. To use this API,
